@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Content Pipeline Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Karla:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --surface2: #eeecea;
+  --border: #dddbd6;
+  --text: #1a1916;
+  --muted: #8a8880;
+  --muted2: #b5b3ae;
+
+  --raftar:        #c84b31;
+  --raftar-sports: #2563eb;
+  --raftar-cuts:   #7c3aed;
+  --raftar-now:    #0891b2;
+  --momkast:       #d97706;
+  --corporate:     #374151;
+
+  --stage-idea:    #6366f1;
+  --stage-script:  #8b5cf6;
+  --stage-shoot:   #ec4899;
+  --stage-edit:    #f59e0b;
+  --stage-thumb:   #10b981;
+  --stage-review:  #3b82f6;
+  --stage-upload:  #22c55e;
+
+  --p-high: #ef4444;
+  --p-med:  #f59e0b;
+  --p-low:  #94a3b8;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Karla', sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--text);
+  color: var(--bg);
+  padding: 0 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.logo span { opacity: 0.4; font-weight: 400; margin-left: 8px; font-size: 13px; letter-spacing: 0; }
+.header-actions { display: flex; gap: 10px; align-items: center; }
+.hbtn {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--bg);
+  padding: 7px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Karla', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+.hbtn:hover { background: rgba(255,255,255,0.18); }
+.hbtn.primary { background: var(--bg); color: var(--text); border-color: var(--bg); font-weight: 600; }
+.hbtn.primary:hover { background: #e8e7e3; }
+
+/* ── CHANNEL TABS ── */
+.channel-nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 36px;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+}
+.ch-tab {
+  padding: 14px 22px;
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ch-tab:hover { color: var(--text); }
+.ch-tab.active { color: var(--text); border-bottom-color: currentColor; }
+.ch-tab .ch-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ch-tab .ch-count {
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.ch-tab.active .ch-count { background: var(--text); color: var(--bg); }
+
+/* ── BOARD HEADER ── */
+.board-header {
+  padding: 24px 36px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.board-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.board-meta { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.board-meta strong { color: var(--text); }
+.board-controls { display: flex; gap: 8px; align-items: center; }
+.filter-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-family: 'Karla', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+}
+
+/* ── PIPELINE STAGES LEGEND ── */
+.stages-bar {
+  padding: 0 36px 20px;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+.stage-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'Syne', sans-serif;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.stage-chip .sdot { width: 7px; height: 7px; border-radius: 50%; }
+
+/* ── KANBAN BOARD ── */
+.board {
+  padding: 0 36px 40px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(220px, 1fr));
+  gap: 12px;
+  overflow-x: auto;
+  align-items: start;
+}
+
+.column {
+  background: var(--surface2);
+  border-radius: 10px;
+  overflow: hidden;
+  min-width: 200px;
+}
+.col-header {
+  padding: 12px 14px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.col-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.col-badge {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: 'Karla', sans-serif;
+  font-weight: 500;
+}
+.col-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 60px;
+}
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+}
+.card:hover { border-color: #bbb; box-shadow: 0 2px 8px rgba(0,0,0,0.07); transform: translateY(-1px); }
+.card-title { font-size: 13px; font-weight: 500; line-height: 1.4; margin-bottom: 10px; }
+.card-meta { display: flex; flex-direction: column; gap: 5px; }
+.card-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.card-row svg { flex-shrink: 0; }
+.card-assignee {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface2);
+  border-radius: 12px;
+  padding: 2px 8px 2px 2px;
+  font-size: 11px;
+  color: var(--text);
+}
+.avatar {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 9px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif;
+  flex-shrink: 0;
+}
+.card-due { font-size: 11px; }
+.card-due.overdue { color: var(--p-high); font-weight: 600; }
+.card-due.soon { color: var(--p-med); font-weight: 500; }
+.card-due.ok { color: var(--muted); }
+.card-note {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: var(--surface2);
+  border-radius: 5px;
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+  line-height: 1.4;
+}
+.priority-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+
+.add-card {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: 'Karla', sans-serif;
+  font-size: 12px;
+  width: 100%;
+  transition: all 0.15s;
+}
+.add-card:hover { background: var(--surface); color: var(--text); border-color: #bbb; }
+
+/* ── MODAL ── */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(2px);
+}
+.overlay.hidden { display: none; }
+.modal {
+  background: var(--surface);
+  border-radius: 14px;
+  width: 100%; max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+}
+.modal-header {
+  padding: 24px 28px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+}
+.modal-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; line-height: 1.3; }
+.modal-channel {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 5px; font-size: 12px; color: var(--muted);
+}
+.close-btn {
+  width: 32px; height: 32px; border-radius: 6px;
+  background: var(--surface2); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: var(--muted); flex-shrink: 0;
+  transition: background 0.15s;
+}
+.close-btn:hover { background: var(--border); color: var(--text); }
+.modal-body { padding: 24px 28px; display: flex; flex-direction: column; gap: 18px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 11px; font-weight: 600; font-family: 'Syne', sans-serif; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.field input, .field select, .field textarea {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 10px 12px;
+  font-family: 'Karla', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: #999; }
+.field textarea { resize: vertical; min-height: 72px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.stage-progress {
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.stage-btn {
+  padding: 6px 12px; border-radius: 5px;
+  border: 1px solid var(--border); background: var(--surface2);
+  font-family: 'Karla', sans-serif; font-size: 12px; font-weight: 500;
+  color: var(--muted); cursor: pointer; transition: all 0.15s;
+}
+.stage-btn.active { color: white; border-color: transparent; }
+.modal-footer {
+  padding: 16px 28px 24px;
+  display: flex; gap: 10px; justify-content: flex-end;
+}
+.btn-cancel {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); padding: 9px 20px; border-radius: 7px;
+  cursor: pointer; font-family: 'Karla', sans-serif; font-size: 13px; font-weight: 500;
+  transition: all 0.15s;
+}
+.btn-cancel:hover { color: var(--text); }
+.btn-save {
+  background: var(--text); color: var(--bg);
+  border: none; padding: 9px 24px; border-radius: 7px;
+  cursor: pointer; font-family: 'Karla', sans-serif; font-size: 13px; font-weight: 600;
+  transition: background 0.15s;
+}
+.btn-save:hover { background: #333; }
+.btn-delete {
+  background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;
+  padding: 9px 16px; border-radius: 7px;
+  cursor: pointer; font-family: 'Karla', sans-serif; font-size: 13px; font-weight: 500;
+  margin-right: auto; transition: all 0.15s;
+}
+.btn-delete:hover { background: #fecaca; }
+
+/* EMPTY STATE */
+.empty-col {
+  text-align: center; padding: 20px 10px;
+  color: var(--muted2); font-size: 12px; line-height: 1.6;
+}
+
+/* TOOLTIP */
+.tip { position:fixed; background:var(--text); color:var(--bg); border-radius:5px; padding:5px 10px; font-size:11px; pointer-events:none; z-index:999; display:none; white-space:nowrap; }
+.tip.on { display:block; }
+</style>
+</head>
+<body>
+
+<div class="tip" id="tip"></div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">Pipeline <span>Content Tracker</span></div>
+  <div class="header-actions">
+    <button class="hbtn" onclick="openModal(null)">+ New Content</button>
+  </div>
+</div>
+
+<!-- CHANNEL TABS -->
+<div class="channel-nav" id="ch-nav"></div>
+
+<!-- BOARD HEADER -->
+<div class="board-header">
+  <div>
+    <div class="board-title" id="board-title">Raftar</div>
+    <div class="board-meta" id="board-meta"></div>
+  </div>
+  <div class="board-controls">
+    <select class="filter-select" id="assignee-filter" onchange="renderBoard()">
+      <option value="">All Members</option>
+    </select>
+    <select class="filter-select" id="status-filter" onchange="renderBoard()">
+      <option value="">All Stages</option>
+      <option value="Ideation">Ideation</option>
+      <option value="Scripting">Scripting</option>
+      <option value="Shooting">Shooting</option>
+      <option value="Editing">Editing</option>
+      <option value="Thumbnail & SEO">Thumbnail & SEO</option>
+      <option value="Review">Review</option>
+      <option value="Upload">Upload</option>
+    </select>
+  </div>
+</div>
+
+<!-- STAGES LEGEND -->
+<div class="stages-bar">
+  <div class="stage-chip"><div class="sdot" style="background:var(--stage-idea)"></div>Ideation</div>
+  <div class="stage-chip"><div class="sdot" style="background:var(--stage-script)"></div>Scripting</div>
+  <div class="stage-chip"><div class="sdot" style="background:var(--stage-shoot)"></div>Shooting</div>
+  <div class="stage-chip"><div class="sdot" style="background:var(--stage-edit)"></div>Editing</div>
+  <div class="stage-chip"><div class="sdot" style="background:var(--stage-thumb)"></div>Thumbnail & SEO</div>
+  <div class="stage-chip"><div class="sdot" style="background:var(--stage-review)"></div>Review</div>
+  <div class="stage-chip"><div class="sdot" style="background:var(--stage-upload)"></div>Upload</div>
+</div>
+
+<!-- BOARD -->
+<div class="board" id="board"></div>
+
+<!-- MODAL -->
+<div class="overlay hidden" id="overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title">New Content</div>
+        <div class="modal-channel" id="modal-channel-badge"></div>
+      </div>
+      <button class="close-btn" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Video Title / Topic</label>
+        <input type="text" id="f-title" placeholder="e.g. Top 10 Cricket Moments 2026" />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Channel</label>
+          <select id="f-channel" onchange="updateModalChannel()">
+            <option value="Raftar">Raftar</option>
+            <option value="Raftar Sports">Raftar Sports</option>
+            <option value="Raftar Cuts">Raftar Cuts</option>
+            <option value="Raftar Now">Raftar Now</option>
+            <option value="MomKast">MomKast</option>
+            <option value="Corporate">Corporate / B2B</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Assigned To</label>
+          <select id="f-assignee"></select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Current Stage</label>
+        <div class="stage-progress" id="stage-btns"></div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Stage Due Date</label>
+          <input type="date" id="f-due" />
+        </div>
+        <div class="field">
+          <label>Upload Target Date</label>
+          <input type="date" id="f-upload-date" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="f-notes" placeholder="Any context, blockers, or reminders…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-delete hidden" id="btn-delete" onclick="deleteCard()">Delete</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveCard()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────
+const CHANNELS = [
+  { id:'Raftar',        label:'Raftar',         color:'var(--raftar)',        lead:'Zubair Anjum' },
+  { id:'Raftar Sports', label:'Raftar Sports',   color:'var(--raftar-sports)', lead:'Farhan Mallick' },
+  { id:'Raftar Cuts',   label:'Raftar Cuts',     color:'var(--raftar-cuts)',   lead:'Ayesha Imran' },
+  { id:'Raftar Now',    label:'Raftar Now',      color:'var(--raftar-now)',    lead:'Farhan Mallick' },
+  { id:'MomKast',       label:'MomKast',         color:'var(--momkast)',       lead:'Tazeen Malick' },
+  { id:'Corporate',     label:'Corporate / B2B', color:'var(--corporate)',     lead:'Farhan Mallick' },
+];
+
+const STAGES = [
+  { id:'Ideation',       color:'var(--stage-idea)'   },
+  { id:'Scripting',      color:'var(--stage-script)' },
+  { id:'Shooting',       color:'var(--stage-shoot)'  },
+  { id:'Editing',        color:'var(--stage-edit)'   },
+  { id:'Thumbnail & SEO',color:'var(--stage-thumb)'  },
+  { id:'Review',         color:'var(--stage-review)' },
+  { id:'Upload',         color:'var(--stage-upload)' },
+];
+
+const MEMBERS = {
+  'Raftar':        ['Zubair Anjum','Ali Shayan','Faiz Jaffery','Hafiz Minhaj Afzal','Ibrahim Jaffri','Kazim Rizvi','M. K. Salahuddin','Nouman Mahmood','Osama Altaf','Raheel Mukhtar','Amad Usman','Abdul Ahad Baloch','Waqas Ali'],
+  'Raftar Sports': ['Farhan Mallick'],
+  'Raftar Cuts':   ['Ayesha Imran'],
+  'Raftar Now':    ['Farhan Mallick'],
+  'MomKast':       ['Tazeen Malick'],
+  'Corporate':     ['Arsalan Baloch','Gopal Ratanlal','Syed Zulfikar Rizvi','Farhan Mallick'],
+};
+
+const STAGE_COLOR = Object.fromEntries(STAGES.map(s=>[s.id,s.color]));
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+let activeChannel = 'Raftar';
+let editingId = null;
+let selectedStage = 'Ideation';
+
+// Load from localStorage or seed demo data
+let cards = JSON.parse(localStorage.getItem('pipeline_cards') || 'null');
+if (!cards) {
+  cards = seedData();
+  save();
+}
+
+function save() { localStorage.setItem('pipeline_cards', JSON.stringify(cards)); }
+
+function seedData() {
+  const today = new Date();
+  const d = (offset) => { const dt = new Date(today); dt.setDate(dt.getDate()+offset); return dt.toISOString().split('T')[0]; };
+  return [
+    { id:uid(), channel:'Raftar', title:'Behind the Scenes: Studio Tour', assignee:'Nouman Mahmood', stage:'Editing', due:d(2), uploadDate:d(7), notes:'Need B-roll from last week shoot', created:Date.now() },
+    { id:uid(), channel:'Raftar', title:'Top 5 Cricket Controversies', assignee:'Ali Shayan', stage:'Scripting', due:d(-1), uploadDate:d(5), notes:'Research links shared on WhatsApp', created:Date.now()-1 },
+    { id:uid(), channel:'Raftar', title:'Interview: Emerging YouTubers', assignee:'Kazim Rizvi', stage:'Shooting', due:d(3), uploadDate:d(10), notes:'', created:Date.now()-2 },
+    { id:uid(), channel:'Raftar', title:'Weekly Vlog Episode 12', assignee:'Raheel Mukhtar', stage:'Upload', due:d(0), uploadDate:d(1), notes:'Thumbnail approved, pending final review', created:Date.now()-3 },
+    { id:uid(), channel:'Raftar Sports', title:'PSL 2026 Preview', assignee:'Farhan Mallick', stage:'Ideation', due:d(4), uploadDate:d(14), notes:'', created:Date.now() },
+    { id:uid(), channel:'Raftar Sports', title:'Cricket World Cup Highlights', assignee:'Farhan Mallick', stage:'Review', due:d(1), uploadDate:d(3), notes:'Waiting on graphics from design', created:Date.now()-1 },
+    { id:uid(), channel:'Raftar Cuts', title:'Best Moments Compilation #8', assignee:'Ayesha Imran', stage:'Editing', due:d(2), uploadDate:d(6), notes:'', created:Date.now() },
+    { id:uid(), channel:'Raftar Cuts', title:'Reaction Cuts: Viral Clips', assignee:'Ayesha Imran', stage:'Ideation', due:d(5), uploadDate:d(12), notes:'', created:Date.now()-1 },
+    { id:uid(), channel:'Raftar Now', title:'Breaking: News Update', assignee:'Farhan Mallick', stage:'Upload', due:d(0), uploadDate:d(0), notes:'Time-sensitive, upload today', created:Date.now() },
+    { id:uid(), channel:'MomKast', title:'Ep 14: Parenting in the Digital Age', assignee:'Tazeen Malick', stage:'Scripting', due:d(3), uploadDate:d(9), notes:'Guest confirmed for recording', created:Date.now() },
+    { id:uid(), channel:'MomKast', title:'Q&A with Subscribers', assignee:'Tazeen Malick', stage:'Ideation', due:d(6), uploadDate:d(15), notes:'', created:Date.now()-1 },
+    { id:uid(), channel:'Corporate', title:'Client Reel: TechCorp', assignee:'Gopal Ratanlal', stage:'Shooting', due:d(2), uploadDate:d(8), notes:'Location confirmed, equipment booked', created:Date.now() },
+    { id:uid(), channel:'Corporate', title:'Product Demo Video: SaaS Client', assignee:'Arsalan Baloch', stage:'Review', due:d(-2), uploadDate:d(4), notes:'Client revisions pending', created:Date.now()-1 },
+  ];
+}
+
+function uid() { return Math.random().toString(36).slice(2,10); }
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+function init() {
+  buildChannelNav();
+  renderBoard();
+}
+
+// ── CHANNEL NAV ───────────────────────────────────────────────────────────
+function buildChannelNav() {
+  const nav = document.getElementById('ch-nav');
+  nav.innerHTML = CHANNELS.map(ch => {
+    const count = cards.filter(c=>c.channel===ch.id).length;
+    return `<div class="ch-tab${ch.id===activeChannel?' active':''}" style="${ch.id===activeChannel?`color:${ch.color};border-bottom-color:${ch.color}`:''}" onclick="setChannel('${ch.id}')">
+      <div class="ch-dot" style="background:${ch.color}"></div>
+      ${ch.label}
+      <div class="ch-count">${count}</div>
+    </div>`;
+  }).join('');
+}
+
+function setChannel(id) {
+  activeChannel = id;
+  document.getElementById('assignee-filter').value = '';
+  document.getElementById('status-filter').value = '';
+  buildChannelNav();
+  renderBoard();
+}
+
+// ── BOARD ─────────────────────────────────────────────────────────────────
+function renderBoard() {
+  const ch = CHANNELS.find(c=>c.id===activeChannel);
+  const members = MEMBERS[activeChannel] || [];
+  const assigneeFilter = document.getElementById('assignee-filter').value;
+  const stageFilter = document.getElementById('status-filter').value;
+
+  // Update board header
+  document.getElementById('board-title').textContent = ch.label;
+  const chCards = cards.filter(c=>c.channel===activeChannel);
+  const overdue = chCards.filter(c=>c.due && c.due < today() && c.stage !== 'Upload').length;
+  document.getElementById('board-meta').innerHTML =
+    `Lead: <strong>${ch.lead}</strong> &nbsp;·&nbsp; ${chCards.length} items &nbsp;·&nbsp;` +
+    (overdue ? ` <span style="color:var(--p-high);font-weight:600">${overdue} overdue</span>` : ' All on track ✓');
+
+  // Update assignee filter
+  const af = document.getElementById('assignee-filter');
+  const cur = af.value;
+  af.innerHTML = '<option value="">All Members</option>' +
+    members.map(m=>`<option value="${m}"${m===cur?' selected':''}>${m.split(' ')[0]}</option>`).join('');
+
+  // Render columns
+  const board = document.getElementById('board');
+  board.innerHTML = STAGES.map(stage => {
+    let filtered = chCards.filter(c=>c.stage===stage.id);
+    if(assigneeFilter) filtered = filtered.filter(c=>c.assignee===assigneeFilter);
+    if(stageFilter && stageFilter!==stage.id) filtered = [];
+
+    const cardsHtml = filtered.length
+      ? filtered.map(c=>cardHTML(c, ch.color)).join('')
+      : `<div class="empty-col">No items</div>`;
+
+    return `<div class="column">
+      <div class="col-header">
+        <div class="col-title">
+          <div class="sdot" style="background:${stage.color};width:8px;height:8px;border-radius:50%"></div>
+          ${stage.id}
+        </div>
+        <div class="col-badge">${filtered.length}</div>
+      </div>
+      <div class="col-body">
+        ${cardsHtml}
+        <button class="add-card" onclick="openModal(null,'${stage.id}')">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Add
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function cardHTML(c, chColor) {
+  const initials = c.assignee ? c.assignee.split(' ').map(w=>w[0]).slice(0,2).join('') : '?';
+  const dueCls = !c.due ? 'ok' : c.due < today() ? 'overdue' : daysUntil(c.due) <= 2 ? 'soon' : 'ok';
+  const dueLabel = !c.due ? '' : c.due < today() ? `⚠ Overdue (${c.due})` : `Due ${c.due}`;
+
+  return `<div class="card" style="border-left-color:${chColor};border-left-width:3px" onclick="openModal('${c.id}')">
+    <div class="card-title">${c.title}</div>
+    <div class="card-meta">
+      ${c.assignee ? `<div class="card-row">
+        <div class="card-assignee">
+          <div class="avatar" style="background:${chColor}">${initials}</div>
+          ${c.assignee.split(' ')[0]}
+        </div>
+      </div>` : ''}
+      ${dueLabel ? `<div class="card-row card-due ${dueCls}">
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><rect x="1" y="2" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M4 1v2M8 1v2M1 5h10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        ${dueLabel}
+      </div>` : ''}
+      ${c.uploadDate ? `<div class="card-row" style="color:var(--muted)">
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 8V2M3 5l3-3 3 3M2 10h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Upload: ${c.uploadDate}
+      </div>` : ''}
+    </div>
+    ${c.notes ? `<div class="card-note">${c.notes}</div>` : ''}
+  </div>`;
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────
+function openModal(id, defaultStage) {
+  editingId = id;
+  const card = id ? cards.find(c=>c.id===id) : null;
+  const ch = card ? card.channel : activeChannel;
+
+  document.getElementById('modal-title').textContent = card ? card.title : 'New Content';
+  document.getElementById('f-title').value = card ? card.title : '';
+  document.getElementById('f-channel').value = card ? card.channel : activeChannel;
+  document.getElementById('f-due').value = card ? (card.due||'') : '';
+  document.getElementById('f-upload-date').value = card ? (card.uploadDate||'') : '';
+  document.getElementById('f-notes').value = card ? (card.notes||'') : '';
+  document.getElementById('btn-delete').classList.toggle('hidden', !id);
+
+  selectedStage = card ? card.stage : (defaultStage || 'Ideation');
+
+  updateModalChannel();
+  document.getElementById('f-assignee').value = card ? card.assignee : '';
+
+  document.getElementById('overlay').classList.remove('hidden');
+}
+
+function updateModalChannel() {
+  const ch = document.getElementById('f-channel').value;
+  const members = MEMBERS[ch] || [];
+  const channel = CHANNELS.find(c=>c.id===ch);
+
+  document.getElementById('modal-channel-badge').innerHTML =
+    `<div style="width:8px;height:8px;border-radius:50%;background:${channel.color}"></div> ${channel.label} · Lead: ${channel.lead}`;
+
+  const sel = document.getElementById('f-assignee');
+  sel.innerHTML = '<option value="">Unassigned</option>' +
+    members.map(m=>`<option value="${m}">${m}</option>`).join('');
+
+  // Stage buttons
+  const stageContainer = document.getElementById('stage-btns');
+  stageContainer.innerHTML = STAGES.map(s=>`
+    <button class="stage-btn${selectedStage===s.id?' active':''}"
+      style="${selectedStage===s.id?`background:${s.color};`:''}border-color:${s.color}"
+      onclick="selectStage('${s.id}',this,'${s.color}')">${s.id}</button>
+  `).join('');
+}
+
+function selectStage(id, btn, color) {
+  selectedStage = id;
+  document.querySelectorAll('.stage-btn').forEach(b=>{ b.classList.remove('active'); b.style.background=''; b.style.color=''; });
+  btn.classList.add('active');
+  btn.style.background = color;
+  btn.style.color = 'white';
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.add('hidden');
+  editingId = null;
+}
+
+function handleOverlayClick(e) { if(e.target===document.getElementById('overlay')) closeModal(); }
+
+function saveCard() {
+  const title = document.getElementById('f-title').value.trim();
+  if(!title) { document.getElementById('f-title').style.borderColor='var(--p-high)'; return; }
+  document.getElementById('f-title').style.borderColor='';
+
+  const data = {
+    channel: document.getElementById('f-channel').value,
+    title,
+    assignee: document.getElementById('f-assignee').value,
+    stage: selectedStage,
+    due: document.getElementById('f-due').value,
+    uploadDate: document.getElementById('f-upload-date').value,
+    notes: document.getElementById('f-notes').value.trim(),
+  };
+
+  if(editingId) {
+    const idx = cards.findIndex(c=>c.id===editingId);
+    cards[idx] = { ...cards[idx], ...data };
+  } else {
+    cards.push({ id:uid(), created:Date.now(), ...data });
+  }
+
+  save();
+  closeModal();
+  buildChannelNav();
+  renderBoard();
+}
+
+function deleteCard() {
+  if(!editingId) return;
+  if(!confirm('Delete this content item?')) return;
+  cards = cards.filter(c=>c.id!==editingId);
+  save();
+  closeModal();
+  buildChannelNav();
+  renderBoard();
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────
+function today() { return new Date().toISOString().split('T')[0]; }
+function daysUntil(date) { return Math.ceil((new Date(date)-new Date(today()))/(1000*60*60*24)); }
+
+// ── BOOT ──────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
