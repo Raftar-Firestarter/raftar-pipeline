@@ -3,412 +3,166 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Content Pipeline Tracker</title>
+<title>Content Pipeline — Raftar Media</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Karla:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+
+<!-- ══ REPLACE THESE 3 VALUES WITH YOUR FIREBASE CONFIG (Step 4 in setup guide) ══ -->
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyByvVbAacV2cSBUHxCLAZ1Dqre4TQW6Kl8",
+    authDomain:        "content-pipeline-e542b.firebaseapp.com",
+    databaseURL:       "https://content-pipeline-e542b-default-rtdb.firebaseio.com",
+    projectId:         "content-pipeline-e542b",
+    storageBucket:     "content-pipeline-e542b.firebasestorage.app",
+    messagingSenderId: "126814128636",
+    appId:             "1:126814128636:web:e49ac139c191177a69ca79"
+  };
+</script>
+
 <style>
 :root {
-  --bg: #f5f4f0;
-  --surface: #ffffff;
-  --surface2: #eeecea;
-  --border: #dddbd6;
-  --text: #1a1916;
-  --muted: #8a8880;
-  --muted2: #b5b3ae;
+  --bg:#f5f4f0; --surface:#ffffff; --surface2:#eeecea; --border:#dddbd6;
+  --text:#1a1916; --muted:#8a8880; --muted2:#b5b3ae;
+  --raftar:#c84b31; --raftar-sports:#2563eb; --raftar-cuts:#7c3aed;
+  --raftar-now:#0891b2; --momkast:#d97706; --corporate:#374151;
+  --stage-idea:#6366f1; --stage-script:#8b5cf6; --stage-shoot:#ec4899;
+  --stage-edit:#f59e0b; --stage-thumb:#10b981; --stage-review:#3b82f6; --stage-upload:#22c55e;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Karla',sans-serif;font-size:14px;min-height:100vh;}
 
-  --raftar:        #c84b31;
-  --raftar-sports: #2563eb;
-  --raftar-cuts:   #7c3aed;
-  --raftar-now:    #0891b2;
-  --momkast:       #d97706;
-  --corporate:     #374151;
+/* SETUP BANNER */
+.setup-banner{background:#1a1916;color:#f5f4f0;padding:12px 36px;display:flex;align-items:center;gap:12px;font-size:13px;}
+.setup-banner.hidden{display:none;}
+.setup-banner strong{color:#fbbf24;}
+.setup-banner a{color:#60a5fa;text-decoration:underline;cursor:pointer;}
 
-  --stage-idea:    #6366f1;
-  --stage-script:  #8b5cf6;
-  --stage-shoot:   #ec4899;
-  --stage-edit:    #f59e0b;
-  --stage-thumb:   #10b981;
-  --stage-review:  #3b82f6;
-  --stage-upload:  #22c55e;
+/* SYNC STATUS */
+.sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
+.sync-dot.live{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,0.2);}
+.sync-dot.offline{background:#f59e0b;}
+.sync-dot.demo{background:#94a3b8;}
 
-  --p-high: #ef4444;
-  --p-med:  #f59e0b;
-  --p-low:  #94a3b8;
-}
+/* HEADER */
+.header{background:var(--text);color:var(--bg);padding:0 36px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;}
+.logo{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;letter-spacing:-0.5px;display:flex;align-items:center;gap:10px;}
+.logo span{opacity:0.4;font-weight:400;font-size:13px;}
+.sync-status{font-size:11px;opacity:0.7;display:flex;align-items:center;}
+.header-actions{display:flex;gap:8px;align-items:center;}
+.hbtn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:var(--bg);padding:7px 16px;border-radius:6px;cursor:pointer;font-family:'Karla',sans-serif;font-size:13px;font-weight:500;transition:background 0.15s;}
+.hbtn:hover{background:rgba(255,255,255,0.18);}
+.hbtn.primary{background:var(--bg);color:var(--text);border-color:var(--bg);font-weight:600;}
+.hbtn.primary:hover{background:#e8e7e3;}
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* CHANNEL TABS */
+.channel-nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 36px;display:flex;gap:0;overflow-x:auto;}
+.ch-tab{padding:14px 22px;font-family:'Syne',sans-serif;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s;display:flex;align-items:center;gap:8px;}
+.ch-tab:hover{color:var(--text);}
+.ch-tab.active{color:var(--text);border-bottom-color:currentColor;}
+.ch-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.ch-count{background:var(--surface2);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:500;color:var(--muted);}
+.ch-tab.active .ch-count{background:var(--text);color:var(--bg);}
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Karla', sans-serif;
-  font-size: 14px;
-  min-height: 100vh;
-}
+/* BOARD HEADER */
+.board-header{padding:24px 36px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.board-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-0.5px;}
+.board-meta{font-size:13px;color:var(--muted);margin-top:3px;}
+.board-meta strong{color:var(--text);}
+.board-controls{display:flex;gap:8px;align-items:center;}
+.filter-select{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:7px 12px;font-family:'Karla',sans-serif;font-size:13px;color:var(--text);cursor:pointer;outline:none;}
 
-/* ── HEADER ── */
-.header {
-  background: var(--text);
-  color: var(--bg);
-  padding: 0 36px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 60px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-.logo {
-  font-family: 'Syne', sans-serif;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-}
-.logo span { opacity: 0.4; font-weight: 400; margin-left: 8px; font-size: 13px; letter-spacing: 0; }
-.header-actions { display: flex; gap: 10px; align-items: center; }
-.hbtn {
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.15);
-  color: var(--bg);
-  padding: 7px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: 'Karla', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  transition: background 0.15s;
-}
-.hbtn:hover { background: rgba(255,255,255,0.18); }
-.hbtn.primary { background: var(--bg); color: var(--text); border-color: var(--bg); font-weight: 600; }
-.hbtn.primary:hover { background: #e8e7e3; }
+/* STAGES LEGEND */
+.stages-bar{padding:0 36px 20px;display:flex;gap:6px;overflow-x:auto;}
+.stage-chip{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;font-family:'Syne',sans-serif;letter-spacing:0.03em;white-space:nowrap;background:var(--surface);border:1px solid var(--border);color:var(--muted);}
+.stage-chip .sdot{width:7px;height:7px;border-radius:50%;}
 
-/* ── CHANNEL TABS ── */
-.channel-nav {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 0 36px;
-  display: flex;
-  gap: 0;
-  overflow-x: auto;
-}
-.ch-tab {
-  padding: 14px 22px;
-  font-family: 'Syne', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--muted);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  white-space: nowrap;
-  transition: all 0.15s;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.ch-tab:hover { color: var(--text); }
-.ch-tab.active { color: var(--text); border-bottom-color: currentColor; }
-.ch-tab .ch-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.ch-tab .ch-count {
-  background: var(--surface2);
-  border-radius: 10px;
-  padding: 1px 7px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--muted);
-}
-.ch-tab.active .ch-count { background: var(--text); color: var(--bg); }
+/* BOARD */
+.board{padding:0 36px 40px;display:grid;grid-template-columns:repeat(7,minmax(220px,1fr));gap:12px;overflow-x:auto;align-items:start;}
+.column{background:var(--surface2);border-radius:10px;overflow:hidden;}
+.col-header{padding:12px 14px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.col-title{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;display:flex;align-items:center;gap:7px;}
+.col-badge{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1px 8px;font-size:11px;color:var(--muted);font-family:'Karla',sans-serif;font-weight:500;}
+.col-body{padding:10px;display:flex;flex-direction:column;gap:8px;min-height:60px;}
 
-/* ── BOARD HEADER ── */
-.board-header {
-  padding: 24px 36px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.board-title {
-  font-family: 'Syne', sans-serif;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-}
-.board-meta { font-size: 13px; color: var(--muted); margin-top: 3px; }
-.board-meta strong { color: var(--text); }
-.board-controls { display: flex; gap: 8px; align-items: center; }
-.filter-select {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 7px 12px;
-  font-family: 'Karla', sans-serif;
-  font-size: 13px;
-  color: var(--text);
-  cursor: pointer;
-  outline: none;
-}
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden;}
+.card:hover{border-color:#bbb;box-shadow:0 2px 8px rgba(0,0,0,0.07);transform:translateY(-1px);}
+.card-title{font-size:13px;font-weight:500;line-height:1.4;margin-bottom:10px;}
+.card-meta{display:flex;flex-direction:column;gap:5px;}
+.card-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);}
+.card-assignee{display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border-radius:12px;padding:2px 8px 2px 2px;font-size:11px;color:var(--text);}
+.avatar{width:18px;height:18px;border-radius:50%;background:var(--text);color:var(--bg);font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;flex-shrink:0;}
+.card-due.overdue{color:#ef4444;font-weight:600;}
+.card-due.soon{color:#f59e0b;font-weight:500;}
+.card-due.ok{color:var(--muted);}
+.card-note{margin-top:8px;padding:6px 8px;background:var(--surface2);border-radius:5px;font-size:11px;color:var(--muted);font-style:italic;line-height:1.4;}
+.card-timestamp{font-size:10px;color:var(--muted2);margin-top:6px;}
 
-/* ── PIPELINE STAGES LEGEND ── */
-.stages-bar {
-  padding: 0 36px 20px;
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-}
-.stage-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
-  font-family: 'Syne', sans-serif;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--muted);
-}
-.stage-chip .sdot { width: 7px; height: 7px; border-radius: 50%; }
+.add-card{display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:6px;border:1px dashed var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:'Karla',sans-serif;font-size:12px;width:100%;transition:all 0.15s;}
+.add-card:hover{background:var(--surface);color:var(--text);border-color:#bbb;}
 
-/* ── KANBAN BOARD ── */
-.board {
-  padding: 0 36px 40px;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(220px, 1fr));
-  gap: 12px;
-  overflow-x: auto;
-  align-items: start;
-}
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted);font-size:13px;gap:10px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--text);border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 
-.column {
-  background: var(--surface2);
-  border-radius: 10px;
-  overflow: hidden;
-  min-width: 200px;
-}
-.col-header {
-  padding: 12px 14px 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border);
-}
-.col-title {
-  font-family: 'Syne', sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.col-badge {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 1px 8px;
-  font-size: 11px;
-  color: var(--muted);
-  font-family: 'Karla', sans-serif;
-  font-weight: 500;
-}
-.col-body {
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 60px;
-}
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(2px);}
+.overlay.hidden{display:none;}
+.modal{background:var(--surface);border-radius:14px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.2);}
+.modal-header{padding:24px 28px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.modal-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;line-height:1.3;}
+.modal-ch{display:inline-flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:var(--muted);}
+.close-btn{width:32px;height:32px;border-radius:6px;background:var(--surface2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--muted);flex-shrink:0;transition:background 0.15s;}
+.close-btn:hover{background:var(--border);color:var(--text);}
+.modal-body{padding:24px 28px;display:flex;flex-direction:column;gap:18px;}
+.field{display:flex;flex-direction:column;gap:6px;}
+.field label{font-size:11px;font-weight:600;font-family:'Syne',sans-serif;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);}
+.field input,.field select,.field textarea{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 12px;font-family:'Karla',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border-color 0.15s;width:100%;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:#999;}
+.field textarea{resize:vertical;min-height:72px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.stage-btns{display:flex;gap:4px;flex-wrap:wrap;}
+.stage-btn{padding:6px 12px;border-radius:5px;border:1px solid var(--border);background:var(--surface2);font-family:'Karla',sans-serif;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;transition:all 0.15s;}
+.stage-btn.active{color:white;border-color:transparent;}
+.modal-footer{padding:16px 28px 24px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--border);}
+.btn-cancel{background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:9px 20px;border-radius:7px;cursor:pointer;font-family:'Karla',sans-serif;font-size:13px;font-weight:500;transition:all 0.15s;}
+.btn-cancel:hover{color:var(--text);}
+.btn-save{background:var(--text);color:var(--bg);border:none;padding:9px 24px;border-radius:7px;cursor:pointer;font-family:'Karla',sans-serif;font-size:13px;font-weight:600;transition:background 0.15s;}
+.btn-save:hover{background:#333;}
+.btn-delete{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;padding:9px 16px;border-radius:7px;cursor:pointer;font-family:'Karla',sans-serif;font-size:13px;font-weight:500;margin-right:auto;transition:all 0.15s;}
+.btn-delete:hover{background:#fecaca;}
+.btn-delete.hidden{display:none;}
 
-/* ── CARDS ── */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px 14px;
-  cursor: pointer;
-  transition: all 0.15s;
-  position: relative;
-  overflow: hidden;
-}
-.card::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 3px;
-}
-.card:hover { border-color: #bbb; box-shadow: 0 2px 8px rgba(0,0,0,0.07); transform: translateY(-1px); }
-.card-title { font-size: 13px; font-weight: 500; line-height: 1.4; margin-bottom: 10px; }
-.card-meta { display: flex; flex-direction: column; gap: 5px; }
-.card-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
-.card-row svg { flex-shrink: 0; }
-.card-assignee {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: var(--surface2);
-  border-radius: 12px;
-  padding: 2px 8px 2px 2px;
-  font-size: 11px;
-  color: var(--text);
-}
-.avatar {
-  width: 18px; height: 18px;
-  border-radius: 50%;
-  background: var(--text);
-  color: var(--bg);
-  font-size: 9px;
-  font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  font-family: 'Syne', sans-serif;
-  flex-shrink: 0;
-}
-.card-due { font-size: 11px; }
-.card-due.overdue { color: var(--p-high); font-weight: 600; }
-.card-due.soon { color: var(--p-med); font-weight: 500; }
-.card-due.ok { color: var(--muted); }
-.card-note {
-  margin-top: 8px;
-  padding: 6px 8px;
-  background: var(--surface2);
-  border-radius: 5px;
-  font-size: 11px;
-  color: var(--muted);
-  font-style: italic;
-  line-height: 1.4;
-}
-.priority-dot {
-  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-}
+.empty-col{text-align:center;padding:20px 10px;color:var(--muted2);font-size:12px;line-height:1.6;}
 
-.add-card {
-  display: flex; align-items: center; gap: 6px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px dashed var(--border);
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font-family: 'Karla', sans-serif;
-  font-size: 12px;
-  width: 100%;
-  transition: all 0.15s;
-}
-.add-card:hover { background: var(--surface); color: var(--text); border-color: #bbb; }
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--text);color:var(--bg);padding:12px 18px;border-radius:8px;font-size:13px;z-index:999;transform:translateY(80px);opacity:0;transition:all 0.3s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
 
-/* ── MODAL ── */
-.overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.45);
-  z-index: 200;
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px;
-  backdrop-filter: blur(2px);
-}
-.overlay.hidden { display: none; }
-.modal {
-  background: var(--surface);
-  border-radius: 14px;
-  width: 100%; max-width: 560px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.2);
-}
-.modal-header {
-  padding: 24px 28px 18px;
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
-}
-.modal-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; line-height: 1.3; }
-.modal-channel {
-  display: inline-flex; align-items: center; gap: 6px;
-  margin-top: 5px; font-size: 12px; color: var(--muted);
-}
-.close-btn {
-  width: 32px; height: 32px; border-radius: 6px;
-  background: var(--surface2); border: none; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 18px; color: var(--muted); flex-shrink: 0;
-  transition: background 0.15s;
-}
-.close-btn:hover { background: var(--border); color: var(--text); }
-.modal-body { padding: 24px 28px; display: flex; flex-direction: column; gap: 18px; }
-.field { display: flex; flex-direction: column; gap: 6px; }
-.field label { font-size: 11px; font-weight: 600; font-family: 'Syne', sans-serif; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-.field input, .field select, .field textarea {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  padding: 10px 12px;
-  font-family: 'Karla', sans-serif;
-  font-size: 13px;
-  color: var(--text);
-  outline: none;
-  transition: border-color 0.15s;
-  width: 100%;
-}
-.field input:focus, .field select:focus, .field textarea:focus { border-color: #999; }
-.field textarea { resize: vertical; min-height: 72px; }
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.stage-progress {
-  display: flex; gap: 4px; flex-wrap: wrap;
-}
-.stage-btn {
-  padding: 6px 12px; border-radius: 5px;
-  border: 1px solid var(--border); background: var(--surface2);
-  font-family: 'Karla', sans-serif; font-size: 12px; font-weight: 500;
-  color: var(--muted); cursor: pointer; transition: all 0.15s;
-}
-.stage-btn.active { color: white; border-color: transparent; }
-.modal-footer {
-  padding: 16px 28px 24px;
-  display: flex; gap: 10px; justify-content: flex-end;
-}
-.btn-cancel {
-  background: var(--surface2); border: 1px solid var(--border);
-  color: var(--muted); padding: 9px 20px; border-radius: 7px;
-  cursor: pointer; font-family: 'Karla', sans-serif; font-size: 13px; font-weight: 500;
-  transition: all 0.15s;
-}
-.btn-cancel:hover { color: var(--text); }
-.btn-save {
-  background: var(--text); color: var(--bg);
-  border: none; padding: 9px 24px; border-radius: 7px;
-  cursor: pointer; font-family: 'Karla', sans-serif; font-size: 13px; font-weight: 600;
-  transition: background 0.15s;
-}
-.btn-save:hover { background: #333; }
-.btn-delete {
-  background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;
-  padding: 9px 16px; border-radius: 7px;
-  cursor: pointer; font-family: 'Karla', sans-serif; font-size: 13px; font-weight: 500;
-  margin-right: auto; transition: all 0.15s;
-}
-.btn-delete:hover { background: #fecaca; }
-
-/* EMPTY STATE */
-.empty-col {
-  text-align: center; padding: 20px 10px;
-  color: var(--muted2); font-size: 12px; line-height: 1.6;
-}
-
-/* TOOLTIP */
-.tip { position:fixed; background:var(--text); color:var(--bg); border-radius:5px; padding:5px 10px; font-size:11px; pointer-events:none; z-index:999; display:none; white-space:nowrap; }
-.tip.on { display:block; }
+@media(max-width:768px){.board{padding:0 16px 32px;}.header{padding:0 16px;}.channel-nav,.board-header,.stages-bar{padding-left:16px;padding-right:16px;}}
 </style>
 </head>
 <body>
 
-<div class="tip" id="tip"></div>
+<!-- SETUP BANNER — hidden once Firebase is configured -->
+<div class="setup-banner" id="setup-banner">
+  ⚠ &nbsp;<strong>Firebase not configured yet.</strong> &nbsp;Running in local demo mode — data won't sync across devices.
+  &nbsp;<a onclick="document.getElementById('setup-guide').scrollIntoView()">See setup guide below ↓</a>
+</div>
 
 <!-- HEADER -->
 <div class="header">
-  <div class="logo">Pipeline <span>Content Tracker</span></div>
+  <div class="logo">
+    Pipeline
+    <span>Raftar Media</span>
+    <div class="sync-status" id="sync-status">
+      <span class="sync-dot demo" id="sync-dot"></span>
+      <span id="sync-label">Demo mode</span>
+    </div>
+  </div>
   <div class="header-actions">
-    <button class="hbtn" onclick="openModal(null)">+ New Content</button>
+    <button class="hbtn primary" onclick="openModal(null)">+ New Content</button>
   </div>
 </div>
 
@@ -425,15 +179,10 @@ body {
     <select class="filter-select" id="assignee-filter" onchange="renderBoard()">
       <option value="">All Members</option>
     </select>
-    <select class="filter-select" id="status-filter" onchange="renderBoard()">
+    <select class="filter-select" id="stage-filter" onchange="renderBoard()">
       <option value="">All Stages</option>
-      <option value="Ideation">Ideation</option>
-      <option value="Scripting">Scripting</option>
-      <option value="Shooting">Shooting</option>
-      <option value="Editing">Editing</option>
-      <option value="Thumbnail & SEO">Thumbnail & SEO</option>
-      <option value="Review">Review</option>
-      <option value="Upload">Upload</option>
+      <option>Ideation</option><option>Scripting</option><option>Shooting</option>
+      <option>Editing</option><option>Thumbnail & SEO</option><option>Review</option><option>Upload</option>
     </select>
   </div>
 </div>
@@ -450,15 +199,17 @@ body {
 </div>
 
 <!-- BOARD -->
-<div class="board" id="board"></div>
+<div class="board" id="board">
+  <div class="loading" style="grid-column:1/-1"><div class="spinner"></div> Loading…</div>
+</div>
 
 <!-- MODAL -->
 <div class="overlay hidden" id="overlay" onclick="handleOverlayClick(event)">
-  <div class="modal" id="modal">
+  <div class="modal">
     <div class="modal-header">
       <div>
         <div class="modal-title" id="modal-title">New Content</div>
-        <div class="modal-channel" id="modal-channel-badge"></div>
+        <div class="modal-ch" id="modal-ch"></div>
       </div>
       <button class="close-btn" onclick="closeModal()">×</button>
     </div>
@@ -470,7 +221,7 @@ body {
       <div class="field-row">
         <div class="field">
           <label>Channel</label>
-          <select id="f-channel" onchange="updateModalChannel()">
+          <select id="f-channel" onchange="onChannelChange()">
             <option value="Raftar">Raftar</option>
             <option value="Raftar Sports">Raftar Sports</option>
             <option value="Raftar Cuts">Raftar Cuts</option>
@@ -486,7 +237,7 @@ body {
       </div>
       <div class="field">
         <label>Current Stage</label>
-        <div class="stage-progress" id="stage-btns"></div>
+        <div class="stage-btns" id="stage-btns"></div>
       </div>
       <div class="field-row">
         <div class="field">
@@ -495,12 +246,16 @@ body {
         </div>
         <div class="field">
           <label>Upload Target Date</label>
-          <input type="date" id="f-upload-date" />
+          <input type="date" id="f-upload" />
         </div>
       </div>
       <div class="field">
-        <label>Notes</label>
-        <textarea id="f-notes" placeholder="Any context, blockers, or reminders…"></textarea>
+        <label>Notes / Blockers</label>
+        <textarea id="f-notes" placeholder="Context, blockers, reminders…"></textarea>
+      </div>
+      <div class="field">
+        <label>Updated by</label>
+        <input type="text" id="f-editor" placeholder="Your name" />
       </div>
     </div>
     <div class="modal-footer">
@@ -511,27 +266,118 @@ body {
   </div>
 </div>
 
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SETUP GUIDE — share this with whoever does the Firebase setup
+     ══════════════════════════════════════════════════════════════ -->
+<div id="setup-guide" style="background:#1a1916;color:#f5f4f0;padding:48px 36px;margin-top:60px;font-family:'Karla',sans-serif;font-size:14px;line-height:1.8;">
+  <div style="max-width:680px;margin:0 auto;">
+    <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;margin-bottom:6px;">Firebase Setup Guide</div>
+    <div style="color:#9ca3af;margin-bottom:36px;">One-time 5-minute setup. Free forever for your team size.</div>
+
+    <div style="display:flex;flex-direction:column;gap:28px;">
+
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fbbf24;margin-bottom:8px;">Step 1 — Create a Firebase project</div>
+        <div style="color:#d1d5db;">Go to <strong style="color:#60a5fa;">console.firebase.google.com</strong> and sign in with your Google account.<br>
+        Click <strong>"Add project"</strong> → name it <strong>raftar-pipeline</strong> → disable Google Analytics (not needed) → click <strong>"Create project"</strong>.</div>
+      </div>
+
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fbbf24;margin-bottom:8px;">Step 2 — Create a Realtime Database</div>
+        <div style="color:#d1d5db;">In the left sidebar click <strong>Build → Realtime Database</strong>.<br>
+        Click <strong>"Create Database"</strong> → choose a location (any is fine) → select <strong>"Start in test mode"</strong> → click <strong>"Enable"</strong>.</div>
+      </div>
+
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fbbf24;margin-bottom:8px;">Step 3 — Register a Web App</div>
+        <div style="color:#d1d5db;">In the left sidebar click the <strong>⚙ gear icon → Project settings</strong>.<br>
+        Scroll down to <strong>"Your apps"</strong> → click the <strong>&lt;/&gt; Web</strong> icon.<br>
+        Give it a nickname (e.g. <em>pipeline-tracker</em>) → click <strong>"Register app"</strong>.</div>
+      </div>
+
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fbbf24;margin-bottom:8px;">Step 4 — Paste your config into this file</div>
+        <div style="color:#d1d5db;">Firebase will show you a <strong>firebaseConfig</strong> object that looks like this:<br><br>
+        <div style="background:#0f172a;border-radius:8px;padding:16px;font-family:monospace;font-size:12px;color:#86efac;line-height:1.8;">
+          const firebaseConfig = {<br>
+          &nbsp;&nbsp;apiKey: "AIzaSy...",<br>
+          &nbsp;&nbsp;authDomain: "raftar-pipeline.firebaseapp.com",<br>
+          &nbsp;&nbsp;databaseURL: "https://raftar-pipeline-default-rtdb.firebaseio.com",<br>
+          &nbsp;&nbsp;projectId: "raftar-pipeline",<br>
+          &nbsp;&nbsp;storageBucket: "raftar-pipeline.appspot.com",<br>
+          &nbsp;&nbsp;messagingSenderId: "123456789",<br>
+          &nbsp;&nbsp;appId: "1:123456789:web:abc123"<br>
+          };
+        </div>
+        <br>Open this HTML file in a text editor (Notepad, VS Code, etc.) and find the section at the top that says <strong style="color:#fbbf24;">REPLACE THESE 3 VALUES</strong>. Replace each placeholder with your actual values.</div>
+      </div>
+
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fbbf24;margin-bottom:8px;">Step 5 — Host it on GitHub Pages (free)</div>
+        <div style="color:#d1d5db;">
+          1. Go to <strong style="color:#60a5fa;">github.com</strong> → sign up / sign in → click <strong>"New repository"</strong><br>
+          2. Name it <strong>raftar-pipeline</strong> → set to <strong>Public</strong> → click <strong>"Create repository"</strong><br>
+          3. Click <strong>"uploading an existing file"</strong> → drag this HTML file → click <strong>"Commit changes"</strong><br>
+          4. Go to <strong>Settings → Pages</strong> → under Source select <strong>main branch</strong> → click Save<br>
+          5. GitHub gives you a link like: <strong style="color:#86efac;">https://yourusername.github.io/raftar-pipeline/pipeline_tracker.html</strong><br><br>
+          Share that link with your team. Anyone who opens it will see the same live board.
+        </div>
+      </div>
+
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fbbf24;margin-bottom:8px;">Step 6 — Set Database Rules (keep it open)</div>
+        <div style="color:#d1d5db;">In Firebase console go to <strong>Realtime Database → Rules</strong> and set:<br><br>
+        <div style="background:#0f172a;border-radius:8px;padding:16px;font-family:monospace;font-size:12px;color:#86efac;">
+          {<br>&nbsp;&nbsp;"rules": {<br>&nbsp;&nbsp;&nbsp;&nbsp;".read": true,<br>&nbsp;&nbsp;&nbsp;&nbsp;".write": true<br>&nbsp;&nbsp;}<br>}
+        </div>
+        <br>Click <strong>Publish</strong>. This allows anyone with the link to read and write — which is what you want.
+        <br><span style="color:#9ca3af;font-size:12px;">Note: If you ever want to lock it down later, you can add authentication. But this is fine to start with.</span>
+        </div>
+      </div>
+
+      <div style="background:#0f172a;border-radius:10px;padding:20px 24px;">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:#fbbf24;margin-bottom:8px;">✓ Done? Here's how to verify it's working</div>
+        <div style="color:#d1d5db;font-size:13px;">
+          1. Open the hosted link on your phone<br>
+          2. Open it on your laptop at the same time<br>
+          3. Add a card on one device — it should appear on the other within 1–2 seconds<br>
+          4. The green dot in the top-left should say <strong style="color:#86efac;">"Live"</strong> instead of "Demo mode"
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Firebase Compat SDK (works on GitHub Pages, no bundler needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
-// ── CONFIG ────────────────────────────────────────────────────────────────
+
+// ── CONFIG CHECK ──────────────────────────────────────────────────────────
+const isConfigured = FIREBASE_CONFIG.apiKey !== "PASTE_YOUR_API_KEY_HERE";
+
+// ── DATA ──────────────────────────────────────────────────────────────────
 const CHANNELS = [
-  { id:'Raftar',        label:'Raftar',         color:'var(--raftar)',        lead:'Zubair Anjum' },
+  { id:'Raftar',        label:'Raftar',         color:'var(--raftar)',        lead:'Zubair Anjum'   },
   { id:'Raftar Sports', label:'Raftar Sports',   color:'var(--raftar-sports)', lead:'Farhan Mallick' },
-  { id:'Raftar Cuts',   label:'Raftar Cuts',     color:'var(--raftar-cuts)',   lead:'Ayesha Imran' },
+  { id:'Raftar Cuts',   label:'Raftar Cuts',     color:'var(--raftar-cuts)',   lead:'Ayesha Imran'   },
   { id:'Raftar Now',    label:'Raftar Now',      color:'var(--raftar-now)',    lead:'Farhan Mallick' },
-  { id:'MomKast',       label:'MomKast',         color:'var(--momkast)',       lead:'Tazeen Malick' },
+  { id:'MomKast',       label:'MomKast',         color:'var(--momkast)',       lead:'Tazeen Malick'  },
   { id:'Corporate',     label:'Corporate / B2B', color:'var(--corporate)',     lead:'Farhan Mallick' },
 ];
-
 const STAGES = [
-  { id:'Ideation',       color:'var(--stage-idea)'   },
-  { id:'Scripting',      color:'var(--stage-script)' },
-  { id:'Shooting',       color:'var(--stage-shoot)'  },
-  { id:'Editing',        color:'var(--stage-edit)'   },
-  { id:'Thumbnail & SEO',color:'var(--stage-thumb)'  },
-  { id:'Review',         color:'var(--stage-review)' },
-  { id:'Upload',         color:'var(--stage-upload)' },
+  { id:'Ideation',        color:'var(--stage-idea)'   },
+  { id:'Scripting',       color:'var(--stage-script)' },
+  { id:'Shooting',        color:'var(--stage-shoot)'  },
+  { id:'Editing',         color:'var(--stage-edit)'   },
+  { id:'Thumbnail & SEO', color:'var(--stage-thumb)'  },
+  { id:'Review',          color:'var(--stage-review)' },
+  { id:'Upload',          color:'var(--stage-upload)' },
 ];
-
 const MEMBERS = {
   'Raftar':        ['Zubair Anjum','Ali Shayan','Faiz Jaffery','Hafiz Minhaj Afzal','Ibrahim Jaffri','Kazim Rizvi','M. K. Salahuddin','Nouman Mahmood','Osama Altaf','Raheel Mukhtar','Amad Usman','Abdul Ahad Baloch','Waqas Ali'],
   'Raftar Sports': ['Farhan Mallick'],
@@ -541,56 +387,74 @@ const MEMBERS = {
   'Corporate':     ['Arsalan Baloch','Gopal Ratanlal','Syed Zulfikar Rizvi','Farhan Mallick'],
 };
 
-const STAGE_COLOR = Object.fromEntries(STAGES.map(s=>[s.id,s.color]));
-
 // ── STATE ─────────────────────────────────────────────────────────────────
+let cards = {};
 let activeChannel = 'Raftar';
 let editingId = null;
 let selectedStage = 'Ideation';
+let db = null;
+let cardsRef = null;
 
-// Load from localStorage or seed demo data
-let cards = JSON.parse(localStorage.getItem('pipeline_cards') || 'null');
-if (!cards) {
-  cards = seedData();
-  save();
-}
-
-function save() { localStorage.setItem('pipeline_cards', JSON.stringify(cards)); }
-
-function seedData() {
-  const today = new Date();
-  const d = (offset) => { const dt = new Date(today); dt.setDate(dt.getDate()+offset); return dt.toISOString().split('T')[0]; };
-  return [
-    { id:uid(), channel:'Raftar', title:'Behind the Scenes: Studio Tour', assignee:'Nouman Mahmood', stage:'Editing', due:d(2), uploadDate:d(7), notes:'Need B-roll from last week shoot', created:Date.now() },
-    { id:uid(), channel:'Raftar', title:'Top 5 Cricket Controversies', assignee:'Ali Shayan', stage:'Scripting', due:d(-1), uploadDate:d(5), notes:'Research links shared on WhatsApp', created:Date.now()-1 },
-    { id:uid(), channel:'Raftar', title:'Interview: Emerging YouTubers', assignee:'Kazim Rizvi', stage:'Shooting', due:d(3), uploadDate:d(10), notes:'', created:Date.now()-2 },
-    { id:uid(), channel:'Raftar', title:'Weekly Vlog Episode 12', assignee:'Raheel Mukhtar', stage:'Upload', due:d(0), uploadDate:d(1), notes:'Thumbnail approved, pending final review', created:Date.now()-3 },
-    { id:uid(), channel:'Raftar Sports', title:'PSL 2026 Preview', assignee:'Farhan Mallick', stage:'Ideation', due:d(4), uploadDate:d(14), notes:'', created:Date.now() },
-    { id:uid(), channel:'Raftar Sports', title:'Cricket World Cup Highlights', assignee:'Farhan Mallick', stage:'Review', due:d(1), uploadDate:d(3), notes:'Waiting on graphics from design', created:Date.now()-1 },
-    { id:uid(), channel:'Raftar Cuts', title:'Best Moments Compilation #8', assignee:'Ayesha Imran', stage:'Editing', due:d(2), uploadDate:d(6), notes:'', created:Date.now() },
-    { id:uid(), channel:'Raftar Cuts', title:'Reaction Cuts: Viral Clips', assignee:'Ayesha Imran', stage:'Ideation', due:d(5), uploadDate:d(12), notes:'', created:Date.now()-1 },
-    { id:uid(), channel:'Raftar Now', title:'Breaking: News Update', assignee:'Farhan Mallick', stage:'Upload', due:d(0), uploadDate:d(0), notes:'Time-sensitive, upload today', created:Date.now() },
-    { id:uid(), channel:'MomKast', title:'Ep 14: Parenting in the Digital Age', assignee:'Tazeen Malick', stage:'Scripting', due:d(3), uploadDate:d(9), notes:'Guest confirmed for recording', created:Date.now() },
-    { id:uid(), channel:'MomKast', title:'Q&A with Subscribers', assignee:'Tazeen Malick', stage:'Ideation', due:d(6), uploadDate:d(15), notes:'', created:Date.now()-1 },
-    { id:uid(), channel:'Corporate', title:'Client Reel: TechCorp', assignee:'Gopal Ratanlal', stage:'Shooting', due:d(2), uploadDate:d(8), notes:'Location confirmed, equipment booked', created:Date.now() },
-    { id:uid(), channel:'Corporate', title:'Product Demo Video: SaaS Client', assignee:'Arsalan Baloch', stage:'Review', due:d(-2), uploadDate:d(4), notes:'Client revisions pending', created:Date.now()-1 },
-  ];
-}
-
-function uid() { return Math.random().toString(36).slice(2,10); }
-
-// ── INIT ──────────────────────────────────────────────────────────────────
-function init() {
+// ── FIREBASE INIT ─────────────────────────────────────────────────────────
+if (isConfigured) {
+  document.getElementById('setup-banner').classList.add('hidden');
+  document.getElementById('setup-guide').style.display = 'none';
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    cardsRef = db.ref('cards');
+    setSyncStatus('connecting');
+    cardsRef.on('value', (snapshot) => {
+      cards = snapshot.val() || {};
+      setSyncStatus('live');
+      buildChannelNav();
+      renderBoard();
+    }, (error) => {
+      setSyncStatus('offline');
+      showToast('Connection error — check database rules');
+      fallbackToLocal();
+      buildChannelNav();
+      renderBoard();
+    });
+  } catch(e) {
+    console.error('Firebase init error:', e);
+    setSyncStatus('offline');
+    fallbackToLocal();
+    buildChannelNav();
+    renderBoard();
+  }
+} else {
+  // Demo mode: use localStorage
+  fallbackToLocal();
   buildChannelNav();
   renderBoard();
 }
 
+function fallbackToLocal() {
+  const stored = localStorage.getItem('pipeline_cards_v2');
+  cards = stored ? JSON.parse(stored) : seedDemoData();
+}
+
+function saveLocal() {
+  localStorage.setItem('pipeline_cards_v2', JSON.stringify(cards));
+}
+
+function setSyncStatus(state) {
+  const dot = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + (state==='live'?'live':state==='connecting'?'offline':'demo');
+  label.textContent = state==='live'?'Live':state==='connecting'?'Connecting…':'Demo mode';
+}
+
 // ── CHANNEL NAV ───────────────────────────────────────────────────────────
-function buildChannelNav() {
+window.buildChannelNav = function() {
   const nav = document.getElementById('ch-nav');
   nav.innerHTML = CHANNELS.map(ch => {
-    const count = cards.filter(c=>c.channel===ch.id).length;
-    return `<div class="ch-tab${ch.id===activeChannel?' active':''}" style="${ch.id===activeChannel?`color:${ch.color};border-bottom-color:${ch.color}`:''}" onclick="setChannel('${ch.id}')">
+    const count = Object.values(cards).filter(c=>c.channel===ch.id).length;
+    const isActive = ch.id === activeChannel;
+    return `<div class="ch-tab${isActive?' active':''}"
+      style="${isActive?`color:${ch.color};border-bottom-color:${ch.color}`:''}"
+      onclick="setChannel('${ch.id}')">
       <div class="ch-dot" style="background:${ch.color}"></div>
       ${ch.label}
       <div class="ch-count">${count}</div>
@@ -598,56 +462,55 @@ function buildChannelNav() {
   }).join('');
 }
 
-function setChannel(id) {
+window.setChannel = function(id) {
   activeChannel = id;
   document.getElementById('assignee-filter').value = '';
-  document.getElementById('status-filter').value = '';
+  document.getElementById('stage-filter').value = '';
   buildChannelNav();
   renderBoard();
 }
 
 // ── BOARD ─────────────────────────────────────────────────────────────────
-function renderBoard() {
+window.renderBoard = function() {
   const ch = CHANNELS.find(c=>c.id===activeChannel);
   const members = MEMBERS[activeChannel] || [];
-  const assigneeFilter = document.getElementById('assignee-filter').value;
-  const stageFilter = document.getElementById('status-filter').value;
+  const af = document.getElementById('assignee-filter').value;
+  const sf = document.getElementById('stage-filter').value;
 
-  // Update board header
+  const chCards = Object.entries(cards)
+    .filter(([,c])=>c.channel===activeChannel)
+    .map(([id,c])=>({id,...c}));
+
+  const overdue = chCards.filter(c=>c.due && c.due < todayStr() && c.stage !== 'Upload').length;
+
   document.getElementById('board-title').textContent = ch.label;
-  const chCards = cards.filter(c=>c.channel===activeChannel);
-  const overdue = chCards.filter(c=>c.due && c.due < today() && c.stage !== 'Upload').length;
   document.getElementById('board-meta').innerHTML =
-    `Lead: <strong>${ch.lead}</strong> &nbsp;·&nbsp; ${chCards.length} items &nbsp;·&nbsp;` +
-    (overdue ? ` <span style="color:var(--p-high);font-weight:600">${overdue} overdue</span>` : ' All on track ✓');
+    `Lead: <strong>${ch.lead}</strong> &nbsp;·&nbsp; ${chCards.length} items` +
+    (overdue ? ` &nbsp;·&nbsp; <span style="color:#ef4444;font-weight:600">${overdue} overdue</span>` : ' &nbsp;·&nbsp; ✓ On track');
 
-  // Update assignee filter
-  const af = document.getElementById('assignee-filter');
-  const cur = af.value;
-  af.innerHTML = '<option value="">All Members</option>' +
-    members.map(m=>`<option value="${m}"${m===cur?' selected':''}>${m.split(' ')[0]}</option>`).join('');
+  // Update assignee filter options
+  const afEl = document.getElementById('assignee-filter');
+  const curAf = afEl.value;
+  afEl.innerHTML = '<option value="">All Members</option>' +
+    members.map(m=>`<option value="${m}"${m===curAf?' selected':''}>${m.split(' ')[0]}</option>`).join('');
 
-  // Render columns
   const board = document.getElementById('board');
   board.innerHTML = STAGES.map(stage => {
     let filtered = chCards.filter(c=>c.stage===stage.id);
-    if(assigneeFilter) filtered = filtered.filter(c=>c.assignee===assigneeFilter);
-    if(stageFilter && stageFilter!==stage.id) filtered = [];
-
-    const cardsHtml = filtered.length
-      ? filtered.map(c=>cardHTML(c, ch.color)).join('')
-      : `<div class="empty-col">No items</div>`;
+    if(af) filtered = filtered.filter(c=>c.assignee===af);
+    if(sf && sf!==stage.id) filtered = [];
+    filtered.sort((a,b)=>(a.due||'z').localeCompare(b.due||'z'));
 
     return `<div class="column">
       <div class="col-header">
         <div class="col-title">
-          <div class="sdot" style="background:${stage.color};width:8px;height:8px;border-radius:50%"></div>
+          <div style="width:8px;height:8px;border-radius:50%;background:${stage.color}"></div>
           ${stage.id}
         </div>
         <div class="col-badge">${filtered.length}</div>
       </div>
       <div class="col-body">
-        ${cardsHtml}
+        ${filtered.length ? filtered.map(c=>cardHTML(c,ch.color)).join('') : '<div class="empty-col">No items</div>'}
         <button class="add-card" onclick="openModal(null,'${stage.id}')">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           Add
@@ -659,133 +522,182 @@ function renderBoard() {
 
 function cardHTML(c, chColor) {
   const initials = c.assignee ? c.assignee.split(' ').map(w=>w[0]).slice(0,2).join('') : '?';
-  const dueCls = !c.due ? 'ok' : c.due < today() ? 'overdue' : daysUntil(c.due) <= 2 ? 'soon' : 'ok';
-  const dueLabel = !c.due ? '' : c.due < today() ? `⚠ Overdue (${c.due})` : `Due ${c.due}`;
+  const dueCls = !c.due?'ok': c.due<todayStr()?'overdue': daysUntil(c.due)<=2?'soon':'ok';
+  const dueLabel = !c.due?'': c.due<todayStr()?`⚠ Overdue (${c.due})`:`Due ${c.due}`;
+  const ts = c.updatedAt ? new Date(c.updatedAt).toLocaleDateString('en-PK',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+  const editor = c.updatedBy ? ` by ${c.updatedBy}` : '';
 
-  return `<div class="card" style="border-left-color:${chColor};border-left-width:3px" onclick="openModal('${c.id}')">
-    <div class="card-title">${c.title}</div>
+  return `<div class="card" style="border-left:3px solid ${chColor}" onclick="openModal('${c.id}')">
+    <div class="card-title">${esc(c.title)}</div>
     <div class="card-meta">
-      ${c.assignee ? `<div class="card-row">
-        <div class="card-assignee">
-          <div class="avatar" style="background:${chColor}">${initials}</div>
-          ${c.assignee.split(' ')[0]}
-        </div>
-      </div>` : ''}
-      ${dueLabel ? `<div class="card-row card-due ${dueCls}">
+      ${c.assignee?`<div class="card-row"><div class="card-assignee"><div class="avatar" style="background:${chColor}">${initials}</div>${c.assignee.split(' ')[0]}</div></div>`:''}
+      ${dueLabel?`<div class="card-row card-due ${dueCls}">
         <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><rect x="1" y="2" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M4 1v2M8 1v2M1 5h10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-        ${dueLabel}
-      </div>` : ''}
-      ${c.uploadDate ? `<div class="card-row" style="color:var(--muted)">
+        ${dueLabel}</div>`:''}
+      ${c.uploadDate?`<div class="card-row" style="color:var(--muted)">
         <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 8V2M3 5l3-3 3 3M2 10h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Upload: ${c.uploadDate}
-      </div>` : ''}
+        Upload: ${c.uploadDate}</div>`:''}
     </div>
-    ${c.notes ? `<div class="card-note">${c.notes}</div>` : ''}
+    ${c.notes?`<div class="card-note">${esc(c.notes)}</div>`:''}
+    ${ts?`<div class="card-timestamp">Edited${editor}, ${ts}</div>`:''}
   </div>`;
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────────
-function openModal(id, defaultStage) {
+window.openModal = function(id, defaultStage) {
   editingId = id;
-  const card = id ? cards.find(c=>c.id===id) : null;
-  const ch = card ? card.channel : activeChannel;
+  const card = id ? {id, ...cards[id]} : null;
 
   document.getElementById('modal-title').textContent = card ? card.title : 'New Content';
-  document.getElementById('f-title').value = card ? card.title : '';
-  document.getElementById('f-channel').value = card ? card.channel : activeChannel;
-  document.getElementById('f-due').value = card ? (card.due||'') : '';
-  document.getElementById('f-upload-date').value = card ? (card.uploadDate||'') : '';
-  document.getElementById('f-notes').value = card ? (card.notes||'') : '';
+  document.getElementById('f-title').value = card?.title || '';
+  document.getElementById('f-channel').value = card?.channel || activeChannel;
+  document.getElementById('f-due').value = card?.due || '';
+  document.getElementById('f-upload').value = card?.uploadDate || '';
+  document.getElementById('f-notes').value = card?.notes || '';
+  document.getElementById('f-editor').value = localStorage.getItem('pipeline_user') || '';
   document.getElementById('btn-delete').classList.toggle('hidden', !id);
 
-  selectedStage = card ? card.stage : (defaultStage || 'Ideation');
-
-  updateModalChannel();
-  document.getElementById('f-assignee').value = card ? card.assignee : '';
+  selectedStage = card?.stage || defaultStage || 'Ideation';
+  onChannelChange();
+  if(card?.assignee) document.getElementById('f-assignee').value = card.assignee;
 
   document.getElementById('overlay').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('f-title').focus(), 100);
 }
 
-function updateModalChannel() {
+window.onChannelChange = function() {
   const ch = document.getElementById('f-channel').value;
-  const members = MEMBERS[ch] || [];
   const channel = CHANNELS.find(c=>c.id===ch);
+  const members = MEMBERS[ch] || [];
 
-  document.getElementById('modal-channel-badge').innerHTML =
-    `<div style="width:8px;height:8px;border-radius:50%;background:${channel.color}"></div> ${channel.label} · Lead: ${channel.lead}`;
+  document.getElementById('modal-ch').innerHTML =
+    `<div style="width:8px;height:8px;border-radius:50%;background:${channel.color}"></div>
+     ${channel.label} &nbsp;·&nbsp; Lead: ${channel.lead}`;
 
-  const sel = document.getElementById('f-assignee');
-  sel.innerHTML = '<option value="">Unassigned</option>' +
+  document.getElementById('f-assignee').innerHTML =
+    '<option value="">Unassigned</option>' +
     members.map(m=>`<option value="${m}">${m}</option>`).join('');
 
-  // Stage buttons
-  const stageContainer = document.getElementById('stage-btns');
-  stageContainer.innerHTML = STAGES.map(s=>`
+  const btns = document.getElementById('stage-btns');
+  btns.innerHTML = STAGES.map(s=>`
     <button class="stage-btn${selectedStage===s.id?' active':''}"
-      style="${selectedStage===s.id?`background:${s.color};`:''}border-color:${s.color}"
+      style="${selectedStage===s.id?`background:${s.color};color:white;border-color:transparent;`:`border-color:${s.color};`}"
       onclick="selectStage('${s.id}',this,'${s.color}')">${s.id}</button>
   `).join('');
 }
 
-function selectStage(id, btn, color) {
+window.selectStage = function(id, btn, color) {
   selectedStage = id;
-  document.querySelectorAll('.stage-btn').forEach(b=>{ b.classList.remove('active'); b.style.background=''; b.style.color=''; });
-  btn.classList.add('active');
-  btn.style.background = color;
-  btn.style.color = 'white';
+  document.querySelectorAll('.stage-btn').forEach(b=>{
+    b.classList.remove('active'); b.style.background=''; b.style.color=''; b.style.borderColor=b.dataset.color||'var(--border)';
+  });
+  btn.classList.add('active'); btn.style.background=color; btn.style.color='white'; btn.style.borderColor='transparent';
 }
 
-function closeModal() {
+window.closeModal = function() {
   document.getElementById('overlay').classList.add('hidden');
   editingId = null;
 }
 
-function handleOverlayClick(e) { if(e.target===document.getElementById('overlay')) closeModal(); }
-
-function saveCard() {
-  const title = document.getElementById('f-title').value.trim();
-  if(!title) { document.getElementById('f-title').style.borderColor='var(--p-high)'; return; }
-  document.getElementById('f-title').style.borderColor='';
-
-  const data = {
-    channel: document.getElementById('f-channel').value,
-    title,
-    assignee: document.getElementById('f-assignee').value,
-    stage: selectedStage,
-    due: document.getElementById('f-due').value,
-    uploadDate: document.getElementById('f-upload-date').value,
-    notes: document.getElementById('f-notes').value.trim(),
-  };
-
-  if(editingId) {
-    const idx = cards.findIndex(c=>c.id===editingId);
-    cards[idx] = { ...cards[idx], ...data };
-  } else {
-    cards.push({ id:uid(), created:Date.now(), ...data });
-  }
-
-  save();
-  closeModal();
-  buildChannelNav();
-  renderBoard();
+window.handleOverlayClick = function(e) {
+  if(e.target===document.getElementById('overlay')) closeModal();
 }
 
-function deleteCard() {
-  if(!editingId) return;
-  if(!confirm('Delete this content item?')) return;
-  cards = cards.filter(c=>c.id!==editingId);
-  save();
-  closeModal();
-  buildChannelNav();
-  renderBoard();
+window.saveCard = async function() {
+  const title = document.getElementById('f-title').value.trim();
+  if(!title){ document.getElementById('f-title').style.borderColor='#ef4444'; return; }
+  document.getElementById('f-title').style.borderColor='';
+
+  const editor = document.getElementById('f-editor').value.trim();
+  if(editor) localStorage.setItem('pipeline_user', editor);
+
+  const data = {
+    channel:    document.getElementById('f-channel').value,
+    title,
+    assignee:   document.getElementById('f-assignee').value,
+    stage:      selectedStage,
+    due:        document.getElementById('f-due').value,
+    uploadDate: document.getElementById('f-upload').value,
+    notes:      document.getElementById('f-notes').value.trim(),
+    updatedAt:  Date.now(),
+    updatedBy:  editor || 'Anonymous',
+  };
+
+  try {
+    if(isConfigured && db) {
+      if(editingId) {
+        await db.ref(`cards/${editingId}`).set({ ...cards[editingId], ...data });
+      } else {
+        data.createdAt = Date.now();
+        await cardsRef.push(data);
+      }
+      showToast(editingId ? 'Card updated ✓' : 'Card added ✓');
+    } else {
+      if(editingId) {
+        cards[editingId] = { ...cards[editingId], ...data };
+      } else {
+        const id = uid();
+        cards[id] = { createdAt: Date.now(), ...data };
+      }
+      saveLocal();
+      buildChannelNav();
+      renderBoard();
+      showToast(editingId ? 'Saved locally ✓' : 'Added locally ✓');
+    }
+    closeModal();
+  } catch(e) {
+    showToast('Error saving — check connection');
+  }
+}
+
+window.deleteCard = async function() {
+  if(!editingId || !confirm('Delete this content item?')) return;
+  try {
+    if(isConfigured && db) {
+      await db.ref(`cards/${editingId}`).remove();
+      showToast('Deleted ✓');
+    } else {
+      delete cards[editingId];
+      saveLocal();
+      buildChannelNav();
+      renderBoard();
+      showToast('Deleted locally ✓');
+    }
+    closeModal();
+  } catch(e) {
+    showToast('Error deleting');
+  }
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────
-function today() { return new Date().toISOString().split('T')[0]; }
-function daysUntil(date) { return Math.ceil((new Date(date)-new Date(today()))/(1000*60*60*24)); }
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+function daysUntil(d) { return Math.ceil((new Date(d)-new Date(todayStr()))/(864e5)); }
+function uid() { return Math.random().toString(36).slice(2,10); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ── BOOT ──────────────────────────────────────────────────────────────────
-init();
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+function seedDemoData() {
+  const d=(n)=>{const dt=new Date();dt.setDate(dt.getDate()+n);return dt.toISOString().split('T')[0];};
+  const seed = {
+    [uid()]:{channel:'Raftar',title:'Behind the Scenes: Studio Tour',assignee:'Nouman Mahmood',stage:'Editing',due:d(2),uploadDate:d(7),notes:'Need B-roll from last week shoot',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
+    [uid()]:{channel:'Raftar',title:'Top 5 Cricket Controversies',assignee:'Ali Shayan',stage:'Scripting',due:d(-1),uploadDate:d(5),notes:'Research links shared on WhatsApp',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Zubair Anjum'},
+    [uid()]:{channel:'Raftar',title:'Weekly Vlog Episode 12',assignee:'Raheel Mukhtar',stage:'Upload',due:d(0),uploadDate:d(1),notes:'Thumbnail approved',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Zubair Anjum'},
+    [uid()]:{channel:'Raftar Sports',title:'PSL 2026 Preview',assignee:'Farhan Mallick',stage:'Ideation',due:d(4),uploadDate:d(14),notes:'',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
+    [uid()]:{channel:'Raftar Sports',title:'Cricket World Cup Highlights',assignee:'Farhan Mallick',stage:'Review',due:d(1),uploadDate:d(3),notes:'Waiting on graphics',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
+    [uid()]:{channel:'Raftar Cuts',title:'Best Moments Compilation #8',assignee:'Ayesha Imran',stage:'Editing',due:d(2),uploadDate:d(6),notes:'',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Ayesha Imran'},
+    [uid()]:{channel:'Raftar Now',title:'Breaking: News Update',assignee:'Farhan Mallick',stage:'Upload',due:d(0),uploadDate:d(0),notes:'Time-sensitive',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
+    [uid()]:{channel:'MomKast',title:'Ep 14: Parenting in the Digital Age',assignee:'Tazeen Malick',stage:'Scripting',due:d(3),uploadDate:d(9),notes:'Guest confirmed',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Tazeen Malick'},
+    [uid()]:{channel:'Corporate',title:'Client Reel: TechCorp',assignee:'Gopal Ratanlal',stage:'Shooting',due:d(2),uploadDate:d(8),notes:'Location confirmed',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
+    [uid()]:{channel:'Corporate',title:'Product Demo: SaaS Client',assignee:'Arsalan Baloch',stage:'Review',due:d(-2),uploadDate:d(4),notes:'Client revisions pending',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
+  };
+  saveLocal();
+  return seed;
+}
 </script>
 </body>
 </html>
