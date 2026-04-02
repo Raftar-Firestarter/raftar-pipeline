@@ -374,6 +374,7 @@ body{background:var(--bg);color:var(--text);font-family:'Karla',sans-serif;font-
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
+window.addEventListener("load", function() {
 
 // ── CONFIG CHECK ──────────────────────────────────────────────────────────
 const isConfigured = FIREBASE_CONFIG.apiKey !== "PASTE_YOUR_API_KEY_HERE";
@@ -421,11 +422,11 @@ function isAuthenticated() {
   return sessionStorage.getItem(SESSION_KEY) === 'true';
 }
 
-function showApp() {
+window.showApp = function showApp() {
   document.getElementById('lock-screen').classList.add('hidden');
 }
 
-async function checkPassword() {
+window.checkPassword = async function checkPassword() {
   const input = document.getElementById('lock-input');
   const btn = document.getElementById('lock-btn');
   const errEl = document.getElementById('lock-error');
@@ -781,7 +782,7 @@ function seedDemoData() {
   saveLocal();
   return seed;
 }
+
+}); // end window.onload
 </script>
 </body>
-</html>
-
