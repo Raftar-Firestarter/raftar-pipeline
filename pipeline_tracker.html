@@ -160,14 +160,43 @@ body{background:var(--bg);color:var(--text);font-family:'Karla',sans-serif;font-
 
 @media(max-width:768px){.board{padding:0 16px 32px;}.header{padding:0 16px;}.channel-nav,.board-header,.stages-bar{padding-left:16px;padding-right:16px;}}
 </style>
+
+<!-- ══ YOUR FIREBASE CONFIG ══ -->
+<script>
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyByvVbAacV2cSBUHxCLAZ1Dqre4TQW6Kl8",
+  authDomain:        "content-pipeline-e542b.firebaseapp.com",
+  databaseURL:       "https://content-pipeline-e542b-default-rtdb.firebaseio.com",
+  projectId:         "content-pipeline-e542b",
+  storageBucket:     "content-pipeline-e542b.firebasestorage.app",
+  messagingSenderId: "126814128636",
+  appId:             "1:126814128636:web:e49ac139c191177a69ca79"
+};
+</script>
+
+<!-- Firebase Compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
 </head>
 <body>
 
-<!-- SETUP BANNER — hidden once Firebase is configured -->
-<div class="setup-banner" id="setup-banner">
-  ⚠ &nbsp;<strong>Firebase not configured yet.</strong> &nbsp;Running in local demo mode — data won't sync across devices.
-  &nbsp;<a onclick="document.getElementById('setup-guide').scrollIntoView()">See setup guide below ↓</a>
+<!-- LOCK SCREEN -->
+<div class="lock-screen" id="lock-screen">
+  <div class="lock-box">
+    <div class="lock-icon">🔒</div>
+    <div class="lock-logo">Raftar Pipeline</div>
+    <div class="lock-sub">Enter password to continue</div>
+    <div class="lock-label">Password</div>
+    <input class="lock-input" type="password" id="lock-input" placeholder="••••••••" autocomplete="current-password"/>
+    <button class="lock-btn" id="lock-btn">Enter</button>
+    <div class="lock-error" id="lock-error"></div>
+    <div class="lock-checking" id="lock-checking"></div>
+  </div>
 </div>
+
+<!-- APP (hidden until authenticated) -->
+<div id="app" style="display:none">
 
 <!-- HEADER -->
 <div class="header">
@@ -176,11 +205,11 @@ body{background:var(--bg);color:var(--text);font-family:'Karla',sans-serif;font-
     <span>Raftar Media</span>
     <div class="sync-status" id="sync-status">
       <span class="sync-dot demo" id="sync-dot"></span>
-      <span id="sync-label">Demo mode</span>
+      <span id="sync-label">Connecting…</span>
     </div>
   </div>
   <div class="header-actions">
-    <button class="hbtn primary" onclick="openModal(null)">+ New Content</button>
+    <button class="hbtn primary" id="btn-new-content">+ New Content</button>
   </div>
 </div>
 
@@ -194,10 +223,8 @@ body{background:var(--bg);color:var(--text);font-family:'Karla',sans-serif;font-
     <div class="board-meta" id="board-meta"></div>
   </div>
   <div class="board-controls">
-    <select class="filter-select" id="assignee-filter" onchange="renderBoard()">
-      <option value="">All Members</option>
-    </select>
-    <select class="filter-select" id="stage-filter" onchange="renderBoard()">
+    <select class="filter-select" id="assignee-filter"><option value="">All Members</option></select>
+    <select class="filter-select" id="stage-filter">
       <option value="">All Stages</option>
       <option>Ideation</option><option>Scripting</option><option>Shooting</option>
       <option>Editing</option><option>Thumbnail & SEO</option><option>Review</option><option>Upload</option>
@@ -222,14 +249,14 @@ body{background:var(--bg);color:var(--text);font-family:'Karla',sans-serif;font-
 </div>
 
 <!-- MODAL -->
-<div class="overlay hidden" id="overlay" onclick="handleOverlayClick(event)">
+<div class="overlay hidden" id="overlay">
   <div class="modal">
     <div class="modal-header">
       <div>
         <div class="modal-title" id="modal-title">New Content</div>
         <div class="modal-ch" id="modal-ch"></div>
       </div>
-      <button class="close-btn" onclick="closeModal()">×</button>
+      <button class="close-btn" id="btn-close-modal">×</button>
     </div>
     <div class="modal-body">
       <div class="field">
@@ -239,7 +266,7 @@ body{background:var(--bg);color:var(--text);font-family:'Karla',sans-serif;font-
       <div class="field-row">
         <div class="field">
           <label>Channel</label>
-          <select id="f-channel" onchange="onChannelChange()">
+          <select id="f-channel">
             <option value="Raftar">Raftar</option>
             <option value="Raftar Sports">Raftar Sports</option>
             <option value="Raftar Cuts">Raftar Cuts</option>
@@ -258,14 +285,8 @@ body{background:var(--bg);color:var(--text);font-family:'Karla',sans-serif;font-
         <div class="stage-btns" id="stage-btns"></div>
       </div>
       <div class="field-row">
-        <div class="field">
-          <label>Stage Due Date</label>
-          <input type="date" id="f-due" />
-        </div>
-        <div class="field">
-          <label>Upload Target Date</label>
-          <input type="date" id="f-upload" />
-        </div>
+        <div class="field"><label>Stage Due Date</label><input type="date" id="f-due" /></div>
+        <div class="field"><label>Upload Target Date</label><input type="date" id="f-upload" /></div>
       </div>
       <div class="field">
         <label>Notes / Blockers</label>
@@ -277,109 +298,25 @@ body{background:var(--bg);color:var(--text);font-family:'Karla',sans-serif;font-
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-delete hidden" id="btn-delete" onclick="deleteCard()">Delete</button>
-      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-save" onclick="saveCard()">Save</button>
+      <button class="btn-delete hidden" id="btn-delete">Delete</button>
+      <button class="btn-cancel" id="btn-cancel-modal">Cancel</button>
+      <button class="btn-save" id="btn-save-modal">Save</button>
     </div>
   </div>
 </div>
+
+</div><!-- end #app -->
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- ══════════════════════════════════════════════════════════════
-     SETUP GUIDE — share this with whoever does the Firebase setup
-     ══════════════════════════════════════════════════════════════ -->
-<div id="setup-guide" style="background:#1a1916;color:#f5f4f0;padding:48px 36px;margin-top:60px;font-family:'Karla',sans-serif;font-size:14px;line-height:1.8;">
-  <div style="max-width:680px;margin:0 auto;">
-    <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;margin-bottom:6px;">Firebase Setup Guide</div>
-    <div style="color:#9ca3af;margin-bottom:36px;">One-time 5-minute setup. Free forever for your team size.</div>
-
-    <div style="display:flex;flex-direction:column;gap:28px;">
-
-      <div>
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fbbf24;margin-bottom:8px;">Step 1 — Create a Firebase project</div>
-        <div style="color:#d1d5db;">Go to <strong style="color:#60a5fa;">console.firebase.google.com</strong> and sign in with your Google account.<br>
-        Click <strong>"Add project"</strong> → name it <strong>raftar-pipeline</strong> → disable Google Analytics (not needed) → click <strong>"Create project"</strong>.</div>
-      </div>
-
-      <div>
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fbbf24;margin-bottom:8px;">Step 2 — Create a Realtime Database</div>
-        <div style="color:#d1d5db;">In the left sidebar click <strong>Build → Realtime Database</strong>.<br>
-        Click <strong>"Create Database"</strong> → choose a location (any is fine) → select <strong>"Start in test mode"</strong> → click <strong>"Enable"</strong>.</div>
-      </div>
-
-      <div>
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fbbf24;margin-bottom:8px;">Step 3 — Register a Web App</div>
-        <div style="color:#d1d5db;">In the left sidebar click the <strong>⚙ gear icon → Project settings</strong>.<br>
-        Scroll down to <strong>"Your apps"</strong> → click the <strong>&lt;/&gt; Web</strong> icon.<br>
-        Give it a nickname (e.g. <em>pipeline-tracker</em>) → click <strong>"Register app"</strong>.</div>
-      </div>
-
-      <div>
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fbbf24;margin-bottom:8px;">Step 4 — Paste your config into this file</div>
-        <div style="color:#d1d5db;">Firebase will show you a <strong>firebaseConfig</strong> object that looks like this:<br><br>
-        <div style="background:#0f172a;border-radius:8px;padding:16px;font-family:monospace;font-size:12px;color:#86efac;line-height:1.8;">
-          const firebaseConfig = {<br>
-          &nbsp;&nbsp;apiKey: "AIzaSy...",<br>
-          &nbsp;&nbsp;authDomain: "raftar-pipeline.firebaseapp.com",<br>
-          &nbsp;&nbsp;databaseURL: "https://raftar-pipeline-default-rtdb.firebaseio.com",<br>
-          &nbsp;&nbsp;projectId: "raftar-pipeline",<br>
-          &nbsp;&nbsp;storageBucket: "raftar-pipeline.appspot.com",<br>
-          &nbsp;&nbsp;messagingSenderId: "123456789",<br>
-          &nbsp;&nbsp;appId: "1:123456789:web:abc123"<br>
-          };
-        </div>
-        <br>Open this HTML file in a text editor (Notepad, VS Code, etc.) and find the section at the top that says <strong style="color:#fbbf24;">REPLACE THESE 3 VALUES</strong>. Replace each placeholder with your actual values.</div>
-      </div>
-
-      <div>
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fbbf24;margin-bottom:8px;">Step 5 — Host it on GitHub Pages (free)</div>
-        <div style="color:#d1d5db;">
-          1. Go to <strong style="color:#60a5fa;">github.com</strong> → sign up / sign in → click <strong>"New repository"</strong><br>
-          2. Name it <strong>raftar-pipeline</strong> → set to <strong>Public</strong> → click <strong>"Create repository"</strong><br>
-          3. Click <strong>"uploading an existing file"</strong> → drag this HTML file → click <strong>"Commit changes"</strong><br>
-          4. Go to <strong>Settings → Pages</strong> → under Source select <strong>main branch</strong> → click Save<br>
-          5. GitHub gives you a link like: <strong style="color:#86efac;">https://yourusername.github.io/raftar-pipeline/pipeline_tracker.html</strong><br><br>
-          Share that link with your team. Anyone who opens it will see the same live board.
-        </div>
-      </div>
-
-      <div>
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fbbf24;margin-bottom:8px;">Step 6 — Set Database Rules (keep it open)</div>
-        <div style="color:#d1d5db;">In Firebase console go to <strong>Realtime Database → Rules</strong> and set:<br><br>
-        <div style="background:#0f172a;border-radius:8px;padding:16px;font-family:monospace;font-size:12px;color:#86efac;">
-          {<br>&nbsp;&nbsp;"rules": {<br>&nbsp;&nbsp;&nbsp;&nbsp;".read": true,<br>&nbsp;&nbsp;&nbsp;&nbsp;".write": true<br>&nbsp;&nbsp;}<br>}
-        </div>
-        <br>Click <strong>Publish</strong>. This allows anyone with the link to read and write — which is what you want.
-        <br><span style="color:#9ca3af;font-size:12px;">Note: If you ever want to lock it down later, you can add authentication. But this is fine to start with.</span>
-        </div>
-      </div>
-
-      <div style="background:#0f172a;border-radius:10px;padding:20px 24px;">
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:#fbbf24;margin-bottom:8px;">✓ Done? Here's how to verify it's working</div>
-        <div style="color:#d1d5db;font-size:13px;">
-          1. Open the hosted link on your phone<br>
-          2. Open it on your laptop at the same time<br>
-          3. Add a card on one device — it should appear on the other within 1–2 seconds<br>
-          4. The green dot in the top-left should say <strong style="color:#86efac;">"Live"</strong> instead of "Demo mode"
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<!-- Firebase Compat SDK (works on GitHub Pages, no bundler needed) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
-window.addEventListener("load", function() {
+// ════════════════════════════════════════════════════════════════
+// ALL LOGIC — defined first, then wired up at the bottom
+// ════════════════════════════════════════════════════════════════
 
-// ── CONFIG CHECK ──────────────────────────────────────────────────────────
-const isConfigured = FIREBASE_CONFIG.apiKey !== "PASTE_YOUR_API_KEY_HERE";
-
-// ── DATA ──────────────────────────────────────────────────────────────────
+// ── CONSTANTS ─────────────────────────────────────────────────
+const SESSION_KEY = 'pipeline_auth_v1';
 const CHANNELS = [
   { id:'Raftar',        label:'Raftar',         color:'var(--raftar)',        lead:'Zubair Anjum'   },
   { id:'Raftar Sports', label:'Raftar Sports',   color:'var(--raftar-sports)', lead:'Farhan Mallick' },
@@ -406,7 +343,7 @@ const MEMBERS = {
   'Corporate':     ['Arsalan Baloch','Gopal Ratanlal','Syed Zulfikar Rizvi','Farhan Mallick'],
 };
 
-// ── STATE ─────────────────────────────────────────────────────────────────
+// ── STATE ──────────────────────────────────────────────────────
 let cards = {};
 let activeChannel = 'Raftar';
 let editingId = null;
@@ -414,26 +351,48 @@ let selectedStage = 'Ideation';
 let db = null;
 let cardsRef = null;
 
+// ── UTILS ──────────────────────────────────────────────────────
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+function daysUntil(d) { return Math.ceil((new Date(d) - new Date(todayStr())) / 864e5); }
+function uid() { return Math.random().toString(36).slice(2, 10); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ── PASSWORD CHECK ────────────────────────────────────────────────────────
-const SESSION_KEY = 'pipeline_auth_v1';
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
 
+function setSyncStatus(state) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + (state === 'live' ? 'live' : state === 'connecting' ? 'offline' : 'demo');
+  lbl.textContent = state === 'live' ? 'Live' : state === 'connecting' ? 'Connecting…' : 'Offline';
+}
+
+// ── AUTH ───────────────────────────────────────────────────────
 function isAuthenticated() {
   return sessionStorage.getItem(SESSION_KEY) === 'true';
 }
 
-window.showApp = function showApp() {
-  document.getElementById('lock-screen').classList.add('hidden');
+function showApp() {
+  document.getElementById('lock-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
 }
 
-window.checkPassword = async function checkPassword() {
-  const input = document.getElementById('lock-input');
-  const btn = document.getElementById('lock-btn');
-  const errEl = document.getElementById('lock-error');
+async function checkPassword() {
+  const input   = document.getElementById('lock-input');
+  const btn     = document.getElementById('lock-btn');
+  const errEl   = document.getElementById('lock-error');
   const checkEl = document.getElementById('lock-checking');
-  const val = input.value.trim();
+  const val     = input.value.trim();
 
-  if (!val) { input.classList.add('error'); setTimeout(()=>input.classList.remove('error'),400); return; }
+  if (!val) {
+    input.classList.add('error');
+    setTimeout(() => input.classList.remove('error'), 400);
+    return;
+  }
 
   btn.disabled = true;
   errEl.textContent = '';
@@ -442,148 +401,106 @@ window.checkPassword = async function checkPassword() {
   try {
     const snap = await firebase.database().ref('config/password').get();
     const correct = snap.val();
+    checkEl.textContent = '';
+
     if (!correct) {
-      checkEl.textContent = '';
+      // No password set — let them in
       sessionStorage.setItem(SESSION_KEY, 'true');
       showApp();
       buildChannelNav();
       renderBoard();
-      showToast('No password set yet in Firebase — add config/password via Firebase console');
+      showToast('Tip: Set a password at Firebase → config/password');
       return;
     }
+
     if (val === correct) {
-      checkEl.textContent = '';
       sessionStorage.setItem(SESSION_KEY, 'true');
       showApp();
       buildChannelNav();
       renderBoard();
     } else {
-      checkEl.textContent = '';
       errEl.textContent = 'Incorrect password. Try again.';
       input.value = '';
       input.classList.add('error');
-      setTimeout(()=>input.classList.remove('error'), 400);
+      setTimeout(() => input.classList.remove('error'), 400);
       btn.disabled = false;
     }
-  } catch(e) {
+  } catch (e) {
     checkEl.textContent = '';
     errEl.textContent = 'Could not verify — check your connection.';
+    console.error('Password check error:', e);
     btn.disabled = false;
   }
 }
 
-// ── FIREBASE INIT ─────────────────────────────────────────────────────────
-if (isConfigured) {
-  document.getElementById('setup-banner').classList.add('hidden');
-  document.getElementById('setup-guide').style.display = 'none';
+// ── LOCAL FALLBACK ─────────────────────────────────────────────
+function saveLocal() { localStorage.setItem('pipeline_cards_v2', JSON.stringify(cards)); }
 
-  if (isAuthenticated()) {
-    showApp();
-  } else {
-    setTimeout(() => document.getElementById('lock-input').focus(), 100);
-  }
-
-  try {
-    firebase.initializeApp(FIREBASE_CONFIG);
-    db = firebase.database();
-    cardsRef = db.ref('cards');
-    setSyncStatus('connecting');
-    cardsRef.on('value', (snapshot) => {
-      cards = snapshot.val() || {};
-      setSyncStatus('live');
-      if (isAuthenticated()) {
-        buildChannelNav();
-        renderBoard();
-      }
-    }, (error) => {
-      setSyncStatus('offline');
-      showToast('Connection error — check database rules');
-      fallbackToLocal();
-      if (isAuthenticated()) { buildChannelNav(); renderBoard(); }
-    });
-  } catch(e) {
-    console.error('Firebase init error:', e);
-    setSyncStatus('offline');
-    fallbackToLocal();
-    if (isAuthenticated()) { buildChannelNav(); renderBoard(); }
-  }
-} else {
-  fallbackToLocal();
-  buildChannelNav();
-  renderBoard();
-  showApp();
+function seedDemoData() {
+  const d = (n) => { const dt = new Date(); dt.setDate(dt.getDate() + n); return dt.toISOString().split('T')[0]; };
+  return {
+    [uid()]:{channel:'Raftar',title:'Behind the Scenes: Studio Tour',assignee:'Nouman Mahmood',stage:'Editing',due:d(2),uploadDate:d(7),notes:'Need B-roll from last week',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
+    [uid()]:{channel:'Raftar',title:'Top 5 Cricket Controversies',assignee:'Ali Shayan',stage:'Scripting',due:d(-1),uploadDate:d(5),notes:'Research links on WhatsApp',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Zubair Anjum'},
+    [uid()]:{channel:'Raftar Sports',title:'PSL 2026 Preview',assignee:'Farhan Mallick',stage:'Ideation',due:d(4),uploadDate:d(14),notes:'',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
+    [uid()]:{channel:'Raftar Cuts',title:'Best Moments Compilation #8',assignee:'Ayesha Imran',stage:'Editing',due:d(2),uploadDate:d(6),notes:'',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Ayesha Imran'},
+    [uid()]:{channel:'MomKast',title:'Ep 14: Parenting in the Digital Age',assignee:'Tazeen Malick',stage:'Scripting',due:d(3),uploadDate:d(9),notes:'Guest confirmed',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Tazeen Malick'},
+    [uid()]:{channel:'Corporate',title:'Client Reel: TechCorp',assignee:'Gopal Ratanlal',stage:'Shooting',due:d(2),uploadDate:d(8),notes:'Location confirmed',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
+  };
 }
 
-function fallbackToLocal() {
-  const stored = localStorage.getItem('pipeline_cards_v2');
-  cards = stored ? JSON.parse(stored) : seedDemoData();
-}
-
-function saveLocal() {
-  localStorage.setItem('pipeline_cards_v2', JSON.stringify(cards));
-}
-
-function setSyncStatus(state) {
-  const dot = document.getElementById('sync-dot');
-  const label = document.getElementById('sync-label');
-  dot.className = 'sync-dot ' + (state==='live'?'live':state==='connecting'?'offline':'demo');
-  label.textContent = state==='live'?'Live':state==='connecting'?'Connecting…':'Demo mode';
-}
-
-// ── CHANNEL NAV ───────────────────────────────────────────────────────────
-window.buildChannelNav = function() {
-  const nav = document.getElementById('ch-nav');
-  nav.innerHTML = CHANNELS.map(ch => {
-    const count = Object.values(cards).filter(c=>c.channel===ch.id).length;
+// ── CHANNEL NAV ────────────────────────────────────────────────
+function buildChannelNav() {
+  document.getElementById('ch-nav').innerHTML = CHANNELS.map(ch => {
+    const count = Object.values(cards).filter(c => c.channel === ch.id).length;
     const isActive = ch.id === activeChannel;
-    return `<div class="ch-tab${isActive?' active':''}"
-      style="${isActive?`color:${ch.color};border-bottom-color:${ch.color}`:''}"
-      onclick="setChannel('${ch.id}')">
+    return `<div class="ch-tab${isActive ? ' active' : ''}"
+      style="${isActive ? `color:${ch.color};border-bottom-color:${ch.color}` : ''}"
+      data-channel="${ch.id}">
       <div class="ch-dot" style="background:${ch.color}"></div>
       ${ch.label}
       <div class="ch-count">${count}</div>
     </div>`;
   }).join('');
+
+  document.querySelectorAll('.ch-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      activeChannel = tab.dataset.channel;
+      document.getElementById('assignee-filter').value = '';
+      document.getElementById('stage-filter').value = '';
+      buildChannelNav();
+      renderBoard();
+    });
+  });
 }
 
-window.setChannel = function(id) {
-  activeChannel = id;
-  document.getElementById('assignee-filter').value = '';
-  document.getElementById('stage-filter').value = '';
-  buildChannelNav();
-  renderBoard();
-}
-
-// ── BOARD ─────────────────────────────────────────────────────────────────
-window.renderBoard = function() {
-  const ch = CHANNELS.find(c=>c.id===activeChannel);
+// ── BOARD ──────────────────────────────────────────────────────
+function renderBoard() {
+  const ch      = CHANNELS.find(c => c.id === activeChannel);
   const members = MEMBERS[activeChannel] || [];
-  const af = document.getElementById('assignee-filter').value;
-  const sf = document.getElementById('stage-filter').value;
+  const af      = document.getElementById('assignee-filter').value;
+  const sf      = document.getElementById('stage-filter').value;
 
   const chCards = Object.entries(cards)
-    .filter(([,c])=>c.channel===activeChannel)
-    .map(([id,c])=>({id,...c}));
+    .filter(([, c]) => c.channel === activeChannel)
+    .map(([id, c]) => ({ id, ...c }));
 
-  const overdue = chCards.filter(c=>c.due && c.due < todayStr() && c.stage !== 'Upload').length;
+  const overdue = chCards.filter(c => c.due && c.due < todayStr() && c.stage !== 'Upload').length;
 
   document.getElementById('board-title').textContent = ch.label;
   document.getElementById('board-meta').innerHTML =
     `Lead: <strong>${ch.lead}</strong> &nbsp;·&nbsp; ${chCards.length} items` +
     (overdue ? ` &nbsp;·&nbsp; <span style="color:#ef4444;font-weight:600">${overdue} overdue</span>` : ' &nbsp;·&nbsp; ✓ On track');
 
-  // Update assignee filter options
-  const afEl = document.getElementById('assignee-filter');
+  const afEl  = document.getElementById('assignee-filter');
   const curAf = afEl.value;
   afEl.innerHTML = '<option value="">All Members</option>' +
-    members.map(m=>`<option value="${m}"${m===curAf?' selected':''}>${m.split(' ')[0]}</option>`).join('');
+    members.map(m => `<option value="${m}"${m === curAf ? ' selected' : ''}>${m.split(' ')[0]}</option>`).join('');
 
-  const board = document.getElementById('board');
-  board.innerHTML = STAGES.map(stage => {
-    let filtered = chCards.filter(c=>c.stage===stage.id);
-    if(af) filtered = filtered.filter(c=>c.assignee===af);
-    if(sf && sf!==stage.id) filtered = [];
-    filtered.sort((a,b)=>(a.due||'z').localeCompare(b.due||'z'));
+  document.getElementById('board').innerHTML = STAGES.map(stage => {
+    let filtered = chCards.filter(c => c.stage === stage.id);
+    if (af) filtered = filtered.filter(c => c.assignee === af);
+    if (sf && sf !== stage.id) filtered = [];
+    filtered.sort((a, b) => (a.due || 'z').localeCompare(b.due || 'z'));
 
     return `<div class="column">
       <div class="col-header">
@@ -594,64 +511,71 @@ window.renderBoard = function() {
         <div class="col-badge">${filtered.length}</div>
       </div>
       <div class="col-body">
-        ${filtered.length ? filtered.map(c=>cardHTML(c,ch.color)).join('') : '<div class="empty-col">No items</div>'}
-        <button class="add-card" onclick="openModal(null,'${stage.id}')">
+        ${filtered.length ? filtered.map(c => cardHTML(c, ch.color)).join('') : '<div class="empty-col">No items</div>'}
+        <button class="add-card" data-stage="${stage.id}">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           Add
         </button>
       </div>
     </div>`;
   }).join('');
+
+  document.querySelectorAll('.add-card').forEach(btn => {
+    btn.addEventListener('click', () => openModal(null, btn.dataset.stage));
+  });
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', () => openModal(card.dataset.id));
+  });
 }
 
 function cardHTML(c, chColor) {
-  const initials = c.assignee ? c.assignee.split(' ').map(w=>w[0]).slice(0,2).join('') : '?';
-  const dueCls = !c.due?'ok': c.due<todayStr()?'overdue': daysUntil(c.due)<=2?'soon':'ok';
-  const dueLabel = !c.due?'': c.due<todayStr()?`⚠ Overdue (${c.due})`:`Due ${c.due}`;
-  const ts = c.updatedAt ? new Date(c.updatedAt).toLocaleDateString('en-PK',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
-  const editor = c.updatedBy ? ` by ${c.updatedBy}` : '';
+  const initials = c.assignee ? c.assignee.split(' ').map(w => w[0]).slice(0, 2).join('') : '?';
+  const dueCls   = !c.due ? 'ok' : c.due < todayStr() ? 'overdue' : daysUntil(c.due) <= 2 ? 'soon' : 'ok';
+  const dueLabel = !c.due ? '' : c.due < todayStr() ? `⚠ Overdue (${c.due})` : `Due ${c.due}`;
+  const ts       = c.updatedAt ? new Date(c.updatedAt).toLocaleDateString('en-PK', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+  const editor   = c.updatedBy ? ` by ${c.updatedBy}` : '';
 
-  return `<div class="card" style="border-left:3px solid ${chColor}" onclick="openModal('${c.id}')">
+  return `<div class="card" data-id="${c.id}" style="border-left:3px solid ${chColor}">
     <div class="card-title">${esc(c.title)}</div>
     <div class="card-meta">
-      ${c.assignee?`<div class="card-row"><div class="card-assignee"><div class="avatar" style="background:${chColor}">${initials}</div>${c.assignee.split(' ')[0]}</div></div>`:''}
-      ${dueLabel?`<div class="card-row card-due ${dueCls}">
+      ${c.assignee ? `<div class="card-row"><div class="card-assignee"><div class="avatar" style="background:${chColor}">${initials}</div>${c.assignee.split(' ')[0]}</div></div>` : ''}
+      ${dueLabel ? `<div class="card-row card-due ${dueCls}">
         <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><rect x="1" y="2" width="10" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M4 1v2M8 1v2M1 5h10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-        ${dueLabel}</div>`:''}
-      ${c.uploadDate?`<div class="card-row" style="color:var(--muted)">
+        ${dueLabel}</div>` : ''}
+      ${c.uploadDate ? `<div class="card-row" style="color:var(--muted)">
         <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 8V2M3 5l3-3 3 3M2 10h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Upload: ${c.uploadDate}</div>`:''}
+        Upload: ${c.uploadDate}</div>` : ''}
     </div>
-    ${c.notes?`<div class="card-note">${esc(c.notes)}</div>`:''}
-    ${ts?`<div class="card-timestamp">Edited${editor}, ${ts}</div>`:''}
+    ${c.notes ? `<div class="card-note">${esc(c.notes)}</div>` : ''}
+    ${ts ? `<div class="card-timestamp">Edited${editor}, ${ts}</div>` : ''}
   </div>`;
 }
 
-// ── MODAL ─────────────────────────────────────────────────────────────────
-window.openModal = function(id, defaultStage) {
+// ── MODAL ──────────────────────────────────────────────────────
+function openModal(id, defaultStage) {
   editingId = id;
-  const card = id ? {id, ...cards[id]} : null;
+  const card = id ? { id, ...cards[id] } : null;
 
   document.getElementById('modal-title').textContent = card ? card.title : 'New Content';
-  document.getElementById('f-title').value = card?.title || '';
-  document.getElementById('f-channel').value = card?.channel || activeChannel;
-  document.getElementById('f-due').value = card?.due || '';
-  document.getElementById('f-upload').value = card?.uploadDate || '';
-  document.getElementById('f-notes').value = card?.notes || '';
-  document.getElementById('f-editor').value = localStorage.getItem('pipeline_user') || '';
+  document.getElementById('f-title').value       = card?.title || '';
+  document.getElementById('f-channel').value     = card?.channel || activeChannel;
+  document.getElementById('f-due').value         = card?.due || '';
+  document.getElementById('f-upload').value      = card?.uploadDate || '';
+  document.getElementById('f-notes').value       = card?.notes || '';
+  document.getElementById('f-editor').value      = localStorage.getItem('pipeline_user') || '';
   document.getElementById('btn-delete').classList.toggle('hidden', !id);
 
   selectedStage = card?.stage || defaultStage || 'Ideation';
-  onChannelChange();
-  if(card?.assignee) document.getElementById('f-assignee').value = card.assignee;
+  refreshModalChannel();
+  if (card?.assignee) document.getElementById('f-assignee').value = card.assignee;
 
   document.getElementById('overlay').classList.remove('hidden');
-  setTimeout(()=>document.getElementById('f-title').focus(), 100);
+  setTimeout(() => document.getElementById('f-title').focus(), 100);
 }
 
-window.onChannelChange = function() {
-  const ch = document.getElementById('f-channel').value;
-  const channel = CHANNELS.find(c=>c.id===ch);
+function refreshModalChannel() {
+  const ch      = document.getElementById('f-channel').value;
+  const channel = CHANNELS.find(c => c.id === ch);
   const members = MEMBERS[ch] || [];
 
   document.getElementById('modal-ch').innerHTML =
@@ -660,40 +584,43 @@ window.onChannelChange = function() {
 
   document.getElementById('f-assignee').innerHTML =
     '<option value="">Unassigned</option>' +
-    members.map(m=>`<option value="${m}">${m}</option>`).join('');
+    members.map(m => `<option value="${m}">${m}</option>`).join('');
 
-  const btns = document.getElementById('stage-btns');
-  btns.innerHTML = STAGES.map(s=>`
-    <button class="stage-btn${selectedStage===s.id?' active':''}"
-      style="${selectedStage===s.id?`background:${s.color};color:white;border-color:transparent;`:`border-color:${s.color};`}"
-      onclick="selectStage('${s.id}',this,'${s.color}')">${s.id}</button>
+  document.getElementById('stage-btns').innerHTML = STAGES.map(s => `
+    <button class="stage-btn${selectedStage === s.id ? ' active' : ''}"
+      style="${selectedStage === s.id ? `background:${s.color};color:white;border-color:transparent;` : `border-color:${s.color};`}"
+      data-stage="${s.id}" data-color="${s.color}">${s.id}</button>
   `).join('');
-}
 
-window.selectStage = function(id, btn, color) {
-  selectedStage = id;
-  document.querySelectorAll('.stage-btn').forEach(b=>{
-    b.classList.remove('active'); b.style.background=''; b.style.color=''; b.style.borderColor=b.dataset.color||'var(--border)';
+  document.querySelectorAll('.stage-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedStage = btn.dataset.stage;
+      document.querySelectorAll('.stage-btn').forEach(b => {
+        b.classList.remove('active');
+        b.style.background = '';
+        b.style.color = '';
+        b.style.borderColor = b.dataset.color;
+      });
+      btn.classList.add('active');
+      btn.style.background = btn.dataset.color;
+      btn.style.color = 'white';
+      btn.style.borderColor = 'transparent';
+    });
   });
-  btn.classList.add('active'); btn.style.background=color; btn.style.color='white'; btn.style.borderColor='transparent';
 }
 
-window.closeModal = function() {
+function closeModal() {
   document.getElementById('overlay').classList.add('hidden');
   editingId = null;
 }
 
-window.handleOverlayClick = function(e) {
-  if(e.target===document.getElementById('overlay')) closeModal();
-}
-
-window.saveCard = async function() {
+async function saveCard() {
   const title = document.getElementById('f-title').value.trim();
-  if(!title){ document.getElementById('f-title').style.borderColor='#ef4444'; return; }
-  document.getElementById('f-title').style.borderColor='';
+  if (!title) { document.getElementById('f-title').style.borderColor = '#ef4444'; return; }
+  document.getElementById('f-title').style.borderColor = '';
 
   const editor = document.getElementById('f-editor').value.trim();
-  if(editor) localStorage.setItem('pipeline_user', editor);
+  if (editor) localStorage.setItem('pipeline_user', editor);
 
   const data = {
     channel:    document.getElementById('f-channel').value,
@@ -708,81 +635,95 @@ window.saveCard = async function() {
   };
 
   try {
-    if(isConfigured && db) {
-      if(editingId) {
+    if (db) {
+      if (editingId) {
         await db.ref(`cards/${editingId}`).set({ ...cards[editingId], ...data });
       } else {
         data.createdAt = Date.now();
-        await cardsRef.push(data);
+        await db.ref('cards').push(data);
       }
-      showToast(editingId ? 'Card updated ✓' : 'Card added ✓');
+      showToast(editingId ? 'Updated ✓' : 'Added ✓');
     } else {
-      if(editingId) {
+      if (editingId) {
         cards[editingId] = { ...cards[editingId], ...data };
       } else {
-        const id = uid();
-        cards[id] = { createdAt: Date.now(), ...data };
+        cards[uid()] = { createdAt: Date.now(), ...data };
       }
       saveLocal();
       buildChannelNav();
       renderBoard();
-      showToast(editingId ? 'Saved locally ✓' : 'Added locally ✓');
+      showToast(editingId ? 'Saved ✓' : 'Added ✓');
     }
     closeModal();
-  } catch(e) {
+  } catch (e) {
+    console.error('Save error:', e);
     showToast('Error saving — check connection');
   }
 }
 
-window.deleteCard = async function() {
-  if(!editingId || !confirm('Delete this content item?')) return;
+async function deleteCard() {
+  if (!editingId || !confirm('Delete this content item?')) return;
   try {
-    if(isConfigured && db) {
+    if (db) {
       await db.ref(`cards/${editingId}`).remove();
-      showToast('Deleted ✓');
     } else {
       delete cards[editingId];
       saveLocal();
       buildChannelNav();
       renderBoard();
-      showToast('Deleted locally ✓');
     }
+    showToast('Deleted ✓');
     closeModal();
-  } catch(e) {
+  } catch (e) {
     showToast('Error deleting');
   }
 }
 
-// ── UTILS ─────────────────────────────────────────────────────────────────
-function todayStr() { return new Date().toISOString().split('T')[0]; }
-function daysUntil(d) { return Math.ceil((new Date(d)-new Date(todayStr()))/(864e5)); }
-function uid() { return Math.random().toString(36).slice(2,10); }
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// ── INIT ───────────────────────────────────────────────────────
+(function init() {
+  // Wire up all event listeners — no inline onclick needed
+  document.getElementById('lock-btn').addEventListener('click', checkPassword);
+  document.getElementById('lock-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkPassword(); });
+  document.getElementById('btn-new-content').addEventListener('click', () => openModal(null));
+  document.getElementById('btn-close-modal').addEventListener('click', closeModal);
+  document.getElementById('btn-cancel-modal').addEventListener('click', closeModal);
+  document.getElementById('btn-save-modal').addEventListener('click', saveCard);
+  document.getElementById('btn-delete').addEventListener('click', deleteCard);
+  document.getElementById('overlay').addEventListener('click', e => { if (e.target === document.getElementById('overlay')) closeModal(); });
+  document.getElementById('f-channel').addEventListener('change', refreshModalChannel);
+  document.getElementById('assignee-filter').addEventListener('change', renderBoard);
+  document.getElementById('stage-filter').addEventListener('change', renderBoard);
 
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 2800);
-}
+  // Firebase connect
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.database();
+  cardsRef = db.ref('cards');
+  setSyncStatus('connecting');
 
-function seedDemoData() {
-  const d=(n)=>{const dt=new Date();dt.setDate(dt.getDate()+n);return dt.toISOString().split('T')[0];};
-  const seed = {
-    [uid()]:{channel:'Raftar',title:'Behind the Scenes: Studio Tour',assignee:'Nouman Mahmood',stage:'Editing',due:d(2),uploadDate:d(7),notes:'Need B-roll from last week shoot',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
-    [uid()]:{channel:'Raftar',title:'Top 5 Cricket Controversies',assignee:'Ali Shayan',stage:'Scripting',due:d(-1),uploadDate:d(5),notes:'Research links shared on WhatsApp',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Zubair Anjum'},
-    [uid()]:{channel:'Raftar',title:'Weekly Vlog Episode 12',assignee:'Raheel Mukhtar',stage:'Upload',due:d(0),uploadDate:d(1),notes:'Thumbnail approved',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Zubair Anjum'},
-    [uid()]:{channel:'Raftar Sports',title:'PSL 2026 Preview',assignee:'Farhan Mallick',stage:'Ideation',due:d(4),uploadDate:d(14),notes:'',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
-    [uid()]:{channel:'Raftar Sports',title:'Cricket World Cup Highlights',assignee:'Farhan Mallick',stage:'Review',due:d(1),uploadDate:d(3),notes:'Waiting on graphics',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
-    [uid()]:{channel:'Raftar Cuts',title:'Best Moments Compilation #8',assignee:'Ayesha Imran',stage:'Editing',due:d(2),uploadDate:d(6),notes:'',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Ayesha Imran'},
-    [uid()]:{channel:'Raftar Now',title:'Breaking: News Update',assignee:'Farhan Mallick',stage:'Upload',due:d(0),uploadDate:d(0),notes:'Time-sensitive',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
-    [uid()]:{channel:'MomKast',title:'Ep 14: Parenting in the Digital Age',assignee:'Tazeen Malick',stage:'Scripting',due:d(3),uploadDate:d(9),notes:'Guest confirmed',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Tazeen Malick'},
-    [uid()]:{channel:'Corporate',title:'Client Reel: TechCorp',assignee:'Gopal Ratanlal',stage:'Shooting',due:d(2),uploadDate:d(8),notes:'Location confirmed',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
-    [uid()]:{channel:'Corporate',title:'Product Demo: SaaS Client',assignee:'Arsalan Baloch',stage:'Review',due:d(-2),uploadDate:d(4),notes:'Client revisions pending',createdAt:Date.now(),updatedAt:Date.now(),updatedBy:'Farhan Mallick'},
-  };
-  saveLocal();
-  return seed;
-}
+  cardsRef.on('value', snapshot => {
+    cards = snapshot.val() || {};
+    setSyncStatus('live');
+    if (isAuthenticated()) {
+      buildChannelNav();
+      renderBoard();
+    }
+  }, error => {
+    console.error('Firebase error:', error);
+    setSyncStatus('offline');
+    const stored = localStorage.getItem('pipeline_cards_v2');
+    cards = stored ? JSON.parse(stored) : seedDemoData();
+    if (isAuthenticated()) { buildChannelNav(); renderBoard(); }
+  });
 
-}); // end window.onload
+  // Show lock or app
+  if (isAuthenticated()) {
+    showApp();
+    buildChannelNav();
+    renderBoard();
+  } else {
+    document.getElementById('lock-input').focus();
+  }
+})();
 </script>
 </body>
+</html>
