@@ -29,6 +29,24 @@
   --stage-edit:#f59e0b; --stage-thumb:#10b981; --stage-review:#3b82f6; --stage-upload:#22c55e;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
+/* LOCK SCREEN */
+.lock-screen{position:fixed;inset:0;background:var(--text);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+.lock-screen.hidden{display:none;}
+.lock-box{background:#1e2025;border:1px solid #2a2d35;border-radius:16px;padding:40px 44px;width:100%;max-width:380px;text-align:center;}
+.lock-logo{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#f5f4f0;margin-bottom:6px;}
+.lock-sub{font-size:13px;color:#6b7280;margin-bottom:32px;}
+.lock-icon{font-size:36px;margin-bottom:20px;}
+.lock-label{font-size:11px;font-weight:600;font-family:'Syne',sans-serif;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;text-align:left;margin-bottom:7px;}
+.lock-input{width:100%;background:#0e0f11;border:1px solid #2a2d35;border-radius:8px;padding:12px 16px;font-family:'Karla',sans-serif;font-size:15px;color:#f5f4f0;outline:none;letter-spacing:0.1em;transition:border-color 0.15s;text-align:center;}
+.lock-input:focus{border-color:#3b82f6;}
+.lock-input.error{border-color:#ef4444;animation:shake 0.3s ease;}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
+.lock-btn{width:100%;margin-top:14px;background:#f5f4f0;color:#1a1916;border:none;border-radius:8px;padding:13px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:background 0.15s;}
+.lock-btn:hover{background:#e8e7e3;}
+.lock-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.lock-error{margin-top:12px;font-size:12px;color:#ef4444;min-height:18px;}
+.lock-checking{margin-top:12px;font-size:12px;color:#6b7280;min-height:18px;}
+
 body{background:var(--bg);color:var(--text);font-family:'Karla',sans-serif;font-size:14px;min-height:100vh;}
 
 /* SETUP BANNER */
@@ -395,10 +413,75 @@ let selectedStage = 'Ideation';
 let db = null;
 let cardsRef = null;
 
+
+// ── PASSWORD CHECK ────────────────────────────────────────────────────────
+const SESSION_KEY = 'pipeline_auth_v1';
+
+function isAuthenticated() {
+  return sessionStorage.getItem(SESSION_KEY) === 'true';
+}
+
+function showApp() {
+  document.getElementById('lock-screen').classList.add('hidden');
+}
+
+async function checkPassword() {
+  const input = document.getElementById('lock-input');
+  const btn = document.getElementById('lock-btn');
+  const errEl = document.getElementById('lock-error');
+  const checkEl = document.getElementById('lock-checking');
+  const val = input.value.trim();
+
+  if (!val) { input.classList.add('error'); setTimeout(()=>input.classList.remove('error'),400); return; }
+
+  btn.disabled = true;
+  errEl.textContent = '';
+  checkEl.textContent = 'Checking…';
+
+  try {
+    const snap = await firebase.database().ref('config/password').get();
+    const correct = snap.val();
+    if (!correct) {
+      checkEl.textContent = '';
+      sessionStorage.setItem(SESSION_KEY, 'true');
+      showApp();
+      buildChannelNav();
+      renderBoard();
+      showToast('No password set yet in Firebase — add config/password via Firebase console');
+      return;
+    }
+    if (val === correct) {
+      checkEl.textContent = '';
+      sessionStorage.setItem(SESSION_KEY, 'true');
+      showApp();
+      buildChannelNav();
+      renderBoard();
+    } else {
+      checkEl.textContent = '';
+      errEl.textContent = 'Incorrect password. Try again.';
+      input.value = '';
+      input.classList.add('error');
+      setTimeout(()=>input.classList.remove('error'), 400);
+      btn.disabled = false;
+    }
+  } catch(e) {
+    checkEl.textContent = '';
+    errEl.textContent = 'Could not verify — check your connection.';
+    btn.disabled = false;
+  }
+}
+
 // ── FIREBASE INIT ─────────────────────────────────────────────────────────
 if (isConfigured) {
   document.getElementById('setup-banner').classList.add('hidden');
   document.getElementById('setup-guide').style.display = 'none';
+
+  if (isAuthenticated()) {
+    showApp();
+  } else {
+    setTimeout(() => document.getElementById('lock-input').focus(), 100);
+  }
+
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.database();
@@ -407,27 +490,27 @@ if (isConfigured) {
     cardsRef.on('value', (snapshot) => {
       cards = snapshot.val() || {};
       setSyncStatus('live');
-      buildChannelNav();
-      renderBoard();
+      if (isAuthenticated()) {
+        buildChannelNav();
+        renderBoard();
+      }
     }, (error) => {
       setSyncStatus('offline');
       showToast('Connection error — check database rules');
       fallbackToLocal();
-      buildChannelNav();
-      renderBoard();
+      if (isAuthenticated()) { buildChannelNav(); renderBoard(); }
     });
   } catch(e) {
     console.error('Firebase init error:', e);
     setSyncStatus('offline');
     fallbackToLocal();
-    buildChannelNav();
-    renderBoard();
+    if (isAuthenticated()) { buildChannelNav(); renderBoard(); }
   }
 } else {
-  // Demo mode: use localStorage
   fallbackToLocal();
   buildChannelNav();
   renderBoard();
+  showApp();
 }
 
 function fallbackToLocal() {
@@ -701,3 +784,4 @@ function seedDemoData() {
 </script>
 </body>
 </html>
+
